@@ -2,10 +2,13 @@
 use pixel_engine_gl as engine;
 fn main() -> Result<(), String> {
     let mut engine = engine::logic::Engine::new("Triangle".to_string(), (500, 500, 1), &game_logic);
-    engine.run()
+    engine.run();
+    engine.stop();
+    Ok(())
 }
 
-fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
+fn game_logic(game: &mut engine::logic::Engine) /*-> Result<(), String> */
+{
     fn dist(p1: (i32, i32), p2: (i32, i32)) -> f64 {
         return (((p2.0 - p1.0).pow(2) + (p2.1 - p1.1).pow(2)) as f64).sqrt();
     };
@@ -68,5 +71,4 @@ fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
             }
         }
     }
-    Ok(())
 }

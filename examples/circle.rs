@@ -9,19 +9,13 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 fn game_logic(game: &mut engine::logic::Engine) {
-    let mut running = true;
-    game.screen.clear(engine::graphics::Color::WHITE);
-    game.screen
-        .draw_circle(250, 250, 250, engine::graphics::Color::BLACK);
-    game.screen
-        .fill_circle(250, 255, 125, engine::graphics::Color::BLUE);
-    let mut timer = 0f64;
+    let running = true;
     while game.new_frame() && running {
-        //dbg!(timer);
-        timer += game.elapsed;
-        if timer > 2.5 {
-            //running = false;
-        }
+        game.screen.clear(engine::graphics::Color::WHITE);
+        game.screen
+            .draw_circle(250, 250, 250, engine::graphics::Color::BLACK);
+        game.screen
+            .fill_circle(250, 255, 125, engine::graphics::Color::BLUE);
     }
     println!("closed SOON");
     return;

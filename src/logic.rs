@@ -17,7 +17,7 @@ pub struct Engine {
 
     /* BACKEND */
     pub main: GameLogic,
-    pub screen: screen::Screen,
+    pub screen: screen::ScreenHandle,
     //handler: GlHandler,
     handle: handler::GLHandle,
     k_pressed: std::collections::HashSet<keyboard::Key>,
@@ -42,7 +42,7 @@ impl Engine {
             elapsed: 0f64,
             /* BACKEND */
             main: func,
-            screen: crate::screen::Screen::new(size),
+            screen: crate::screen::ScreenHandle::spawn_thread(size),
             handle: handler::GLHandle::new(sender_handle, receiver_handle),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
@@ -50,12 +50,12 @@ impl Engine {
         }
     }
     pub fn run(&mut self) -> Result<(), String> {
-        //self.screen.launch();
         (self.main)(self);
         Ok(())
     }
     pub fn stop(&mut self) {
         self.handle.destroy();
+        self.screen.destroy();
     }
 
     pub fn new_frame(&mut self) -> bool {
@@ -106,8 +106,10 @@ impl Engine {
 
         /* FRAME UPDATING */
 
-        if self.screen.updated {
-            self.handle.update_frame(self.screen.get_image());
+        if Some(true) == self.screen.updated() {
+            if let Some(img) = self.screen.get_image() {
+                self.handle.update_frame(img);
+            }
         }
         true
     }

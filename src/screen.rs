@@ -12,30 +12,119 @@ enum Commands {
     FillCircle  {x: u32, y: u32, r:u32, col: graphics::Color},
     /* Other */
     Clear       {col:graphics::Color},
+    RequestFrame,
+    Destroy,
+    RequestUpdated,
+}
+enum Values {
+    RequestedImage { image: image::RgbaImage },
+    Updated { update: bool },
 }
 
-pub struct Screen {
+pub struct ScreenHandle {
+    sender: std::sync::mpsc::Sender<Commands>,
+    receiver: std::sync::mpsc::Receiver<Values>,
+}
+
+struct Screen {
     screen: graphics::Sprite,
     pub size: (u32, u32, u32),
     pub updated: bool,
     pub textsheet: graphics::Sprite,
-    sender: std::sync::mpsc::Sender<Commands>,
-    receiver: std::sync::mpsc::Receiver<Commands>,
 }
-impl Screen {
-    // DRAW
+impl ScreenHandle {
+    pub fn spawn_thread(size: (u32, u32, u32)) -> Self {
+        let (sender_handle, receiver_screen) = std::sync::mpsc::channel();
+        let (sender_screen, receiver_handle) = std::sync::mpsc::channel();
+
+        std::thread::spawn(move || {
+            let mut screen = Screen::new(size);
+            while let Ok(r) = receiver_screen.recv() {
+                use Commands::*;
+                match r {
+                    /* Draw */
+                    Draw { x, y, col } => screen.draw(x, y, col),
+                    DrawRect { x, y, w, h, col } => screen.draw_rect(x, y, w, h, col),
+                    DrawCircle { x, y, r, col } => screen.draw_circle(x, y, r, col),
+                    DrawLine { p1, p2, col } => screen.draw_line(p1, p2, col),
+                    DrawText {
+                        x,
+                        y,
+                        scale,
+                        col,
+                        text,
+                    } => screen.draw_text(x, y, scale, col, text),
+                    /* Fill */
+                    FillCircle { x, y, r, col } => screen.fill_circle(x, y, r, col),
+                    /* Other */
+                    Clear { col } => screen.clear(col),
+
+                    RequestFrame => sender_screen
+                        .send(Values::RequestedImage {
+                            image: screen.screen.get_raw(),
+                        })
+                        .expect("Error while sending image after requested"),
+                    Destroy => break,
+                    RequestUpdated => sender_screen
+                        .send(Values::Updated {
+                            update: screen.updated,
+                        })
+                        .expect("Error while sending `updated` after requested"),
+                    //_ => panic!("{:?} isn't implemented in the threads receiver!!!!", r),
+                    //_ => println!("{:?}", r),
+                };
+            }
+        });
+        ScreenHandle {
+            sender: sender_handle,     //std::sync::mpsc::Sender<Commands>,
+            receiver: receiver_handle, //std::sync::mpsc::Receiver<Values>,
+        }
+    }
+    pub fn get_image(&mut self) -> Option<image::RgbaImage> {
+        self.sender
+            .send(Commands::RequestFrame)
+            .expect("Error while requesting screen's Frame");
+        if let Ok(response) = self.receiver.recv() {
+            return match response {
+                Values::RequestedImage { image } => Some(image),
+                _ => None,
+            };
+        }
+        return None;
+    }
+
+    pub fn updated(&mut self) -> Option<bool> {
+        self.sender
+            .send(Commands::RequestUpdated)
+            .expect("Error while requesting screen's updated");
+        if let Ok(response) = self.receiver.recv() {
+            return match response {
+                Values::Updated { update } => Some(update),
+                _ => None,
+            };
+        }
+        return None;
+    }
+
+    pub fn destroy(&mut self) {
+        self.sender
+            .send(Commands::Destroy)
+            .expect("Error while sending destroy request");
+    }
     pub fn draw(&mut self, x: u32, y: u32, col: graphics::Color) {
-        self.sender.send(Commands::Draw { x, y, col }).unwrap();
+        self.sender
+            .send(Commands::Draw { x, y, col })
+            .expect("Error while sending Draw");
     }
     pub fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: graphics::Color) {
         self.sender
             .send(Commands::DrawLine { p1, p2, col })
-            .unwrap();
+            .expect("Error while sending DrawLine");
     }
     pub fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: graphics::Color) {
         self.sender
             .send(Commands::DrawCircle { x, y, r, col })
-            .unwrap();
+            .expect("Error while sending DrawCircle");
     }
     pub fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: graphics::Color, text: String) {
         self.sender
@@ -46,12 +135,12 @@ impl Screen {
                 col,
                 text,
             })
-            .unwrap();
+            .expect("Error while sending DrawText");
     }
     pub fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: graphics::Color) {
         self.sender
             .send(Commands::DrawRect { x, y, w, h, col })
-            .unwrap();
+            .expect("Error while sending DrawRect");
     }
 
     // FILL
@@ -59,41 +148,20 @@ impl Screen {
     pub fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: graphics::Color) {
         self.sender
             .send(Commands::FillCircle { x, y, r, col })
-            .unwrap();
+            .expect("Error while sending FillCircle");
     }
 
     // OTHER
 
     pub fn clear(&mut self, col: graphics::Color) {
-        self.sender.send(Commands::Clear { col }).unwrap();
+        self.sender
+            .send(Commands::Clear { col })
+            .expect("Error while sending Clear");
     }
 }
+
 impl Screen {
-    pub fn launch(&mut self) {
-        while let Ok(r) = self.receiver.recv() {
-            use Commands::*;
-            match r {
-                /* Draw */
-                Draw { x, y, col } => self.r_draw(x, y, col),
-                DrawRect { x, y, w, h, col } => self.r_draw_rect(x, y, w, h, col),
-                DrawCircle { x, y, r, col } => self.r_draw_circle(x, y, r, col),
-                DrawLine { p1, p2, col } => self.r_draw_line(p1, p2, col),
-                DrawText {
-                    x,
-                    y,
-                    scale,
-                    col,
-                    text,
-                } => self.r_draw_text(x, y, scale, col, text),
-                /* Fill */
-                FillCircle { x, y, r, col } => self.r_fill_circle(x, y, r, col),
-                /* Other */
-                Clear { col } => self.r_clear(col),
-                //_ => panic!("{:?} isn't implemented in the threads receiver!!!!", r),
-                //_ => println!("{:?}", r),
-            };
-        }
-    }
+    /*pub fn destroy(&self) {}
     pub fn get_image(&self) -> image::RgbaImage {
         self.screen.get_raw()
     }
@@ -101,24 +169,7 @@ impl Screen {
     pub fn screenshot<'a>(&self, filename: &'a std::path::Path) {
         self.screen.get_raw().save(filename).unwrap();
     }
-    pub fn get_texture<F, R>(&self, factory: &mut F) -> gfx::handle::ShaderResourceView<R, [f32; 4]>
-    where
-        F: gfx::Factory<R>,
-        R: gfx::Resources,
-    {
-        let img = self.get_image();
-        let (width, height) = img.dimensions();
-        let kind =
-            gfx::texture::Kind::D2(width as u16, height as u16, gfx::texture::AaMode::Single);
-        let (_, view) = factory
-            .create_texture_immutable_u8::<crate::handler::ColorFormat>(
-                kind,
-                gfx::texture::Mipmap::Provided,
-                &[&img],
-            )
-            .unwrap();
-        view
-    }
+    */
     fn create_text() -> graphics::Sprite {
         let mut sheet = graphics::Sprite::new(128, 48);
         let mut data = String::new();
@@ -166,23 +217,20 @@ impl Screen {
         if size.0 <= 0 || size.1 <= 0 || size.2 <= 0 {
             panic!("Size elements can't be equal to 0")
         }
-        let (sender, receiver) = std::sync::mpsc::channel();
         Screen {
             screen: graphics::Sprite::new(size.0 * size.2, size.1 * size.2),
             size,
             updated: false,
             textsheet: Self::create_text(),
-            sender,
-            receiver,
         }
     }
-    fn r_draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: graphics::Color) {
+    fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: graphics::Color) {
         self.draw_line((x, y), (x + w, y), col);
         self.draw_line((x + w, y), (x + w, y + h), col);
         self.draw_line((x + w, y + h), (x, y + h), col);
         self.draw_line((x, y + h), (x, y), col);
     }
-    fn r_draw_circle(&mut self, x: u32, y: u32, r: u32, col: graphics::Color) {
+    fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: graphics::Color) {
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
@@ -212,7 +260,7 @@ impl Screen {
         }
     }
 
-    fn r_fill_circle(&mut self, x: u32, y: u32, r: u32, col: graphics::Color) {
+    fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: graphics::Color) {
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
@@ -252,7 +300,7 @@ impl Screen {
         }
     }
 
-    fn r_draw(&mut self, x: u32, y: u32, col: graphics::Color) {
+    fn draw(&mut self, x: u32, y: u32, col: graphics::Color) {
         if x >= self.size.0 || y >= self.size.1 {
             return;
         }
@@ -268,7 +316,7 @@ impl Screen {
             }
         }
     }
-    fn r_draw_text(&mut self, x: u32, y: u32, scale: u32, col: graphics::Color, text: String) {
+    fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: graphics::Color, text: String) {
         let mut sx = 0;
         let mut sy = 0;
         for chr in text.chars() {
@@ -307,7 +355,7 @@ impl Screen {
             sx += 8 * scale;
         }
     }
-    fn r_draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: graphics::Color) {
+    fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: graphics::Color) {
         let (p1, p2) = if p1.0 < p2.0 { (p1, p2) } else { (p2, p1) };
         if p1.0 == p2.0 {
             let iter = if p1.1 < p2.1 {
@@ -348,7 +396,7 @@ impl Screen {
             }
         }
     }
-    fn r_clear(&mut self, col: graphics::Color) {
+    fn clear(&mut self, col: graphics::Color) {
         self.screen = graphics::Sprite::new_with_color(
             self.size.0 * self.size.2,
             self.size.1 * self.size.2,
