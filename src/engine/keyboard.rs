@@ -1,11 +1,15 @@
 pub use glutin::VirtualKeyCode as Keycodes;
 #[derive(Eq, PartialEq, Debug, Hash, Clone)]
+/// Represent a Key
 pub struct Key {
-    // SHIFT / CTRL / ALT / WIN
+    /// The keys modifiers
+    /// [SHIFT / CTRL / ALT / WIN]
     pub modifier: [bool; 4],
+    /// The keycode
     pub key: Keycodes,
 }
 impl Key {
+    /// Return the key's text if it exist
     pub fn get_str_option(&self) -> Option<String> {
         if self.get_str() != "" {
             Some(self.get_str())
@@ -13,6 +17,7 @@ impl Key {
             None
         }
     }
+    /// Return the key's text if it exist, return blank string if not
     pub fn get_str(&self) -> String {
         use Keycodes::*;
         (match self.key {
@@ -73,7 +78,9 @@ impl From<glutin::KeyboardInput> for Key {
     }
 }
 
+/// Trait to handle Keysets
 pub trait KeySet {
+    /// Return true if the set has the key
     fn has(&self, key: Keycodes) -> bool;
 }
 impl KeySet for std::collections::HashSet<Key> {

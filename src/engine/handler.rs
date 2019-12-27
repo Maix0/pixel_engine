@@ -1,5 +1,5 @@
 use crate::gfx;
-use crate::graphics;
+use crate::{Color, Sprite};
 
 gfx_defines! {
     vertex Vertex {
@@ -98,7 +98,7 @@ impl GlHandler {
             .unwrap();
         let (vertex_buffer, slice) =
             factory.create_vertex_buffer_with_slice(&Self::SQUARE, Self::INDICES);
-        let texture = Self::load_texture(&mut factory, graphics::Sprite::new_blank().get_raw());
+        let texture = Self::load_texture(&mut factory, Sprite::new_blank().get_raw());
         let sampler = factory.create_sampler_linear();
 
         let data = pipe::Data {
@@ -142,8 +142,7 @@ impl GlHandler {
     }
     fn update_frame(&mut self, image: image::RgbaImage) {
         self.data.awesome.0 = Self::load_texture(&mut self.factory, image);
-        self.encoder
-            .clear(&self.data.out, graphics::Color::GREEN.into());
+        self.encoder.clear(&self.data.out, Color::GREEN.into());
         self.encoder.draw(&self.slice, &self.pso, &self.data);
         self.encoder.flush(&mut self.device);
         self.window_ctx.swap_buffers().unwrap();
@@ -185,44 +184,71 @@ impl GlHandler {
 }
 
 #[derive(Debug)]
+/// Commands that are being sent to the Handler
 pub enum GLCommands {
-    ChangeTitle { text: String },
-    FrameUpdate { image: image::RgbaImage },
+    /// Change the title
+    ChangeTitle {
+        /// New title
+        text: String,
+    },
+    /// Change frame
+    FrameUpdate {
+        /// New image
+        image: image::RgbaImage,
+    },
+    /// Request to destroy the Handler thread
     Destroy,
+    /// Request processing of all events
     RequestEvents,
 }
 #[derive(Debug)]
+/// Events that are returned after a request
 pub enum GLEvents {
-    Keyboard { inp: glutin::KeyboardInput },
+    /// A keyboard input
+    Keyboard {
+        /// The input
+        inp: glutin::KeyboardInput,
+    },
 }
-
+#[derive(Debug)]
+/// An Handle to talk to the GLHandler's Thread
 pub struct GLHandle {
+    /// Send message to the Handler
     pub sender: std::sync::mpsc::Sender<GLCommands>,
+    /// Receive message from the Handler
     pub receiver: std::sync::mpsc::Receiver<GLEvents>,
 }
 
 impl GLHandle {
-    pub fn new(
-        sender: std::sync::mpsc::Sender<GLCommands>,
-        receiver: std::sync::mpsc::Receiver<GLEvents>,
-    ) -> Self {
-        GLHandle { sender, receiver }
+    /// Create a new thread's for the GLHandler and return a Handle to talk with
+    pub fn new(size: (u32, u32, u32)) -> Self {
+        let (sender_handle, receiver_handler) = std::sync::mpsc::channel();
+        let (sender_handler, receiver_handle) = std::sync::mpsc::channel();
+        GlHandler::spawn_thread(size, receiver_handler, sender_handler);
+        GLHandle {
+            sender: sender_handle,
+            receiver: receiver_handle,
+        }
     }
+    /// Requests the processing of all events
     pub fn request_events(&mut self) {
         self.sender
             .send(GLCommands::RequestEvents)
             .expect("Error while sending RequestEvents");
     }
+    /// Updated the title with given screen
     pub fn update_title(&mut self, text: String) {
         self.sender
             .send(GLCommands::ChangeTitle { text })
             .expect("Error while sending TitleChange");
     }
+    /// Updated window with given image
     pub fn update_frame(&mut self, image: image::RgbaImage) {
         self.sender
             .send(GLCommands::FrameUpdate { image })
             .expect("Error while sending UpdateFrame");
     }
+    /// Destroy GLHandler's Thread
     pub fn destroy(&mut self) {
         self.sender
             .send(GLCommands::Destroy)

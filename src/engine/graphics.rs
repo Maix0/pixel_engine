@@ -1,4 +1,5 @@
 #[derive(Debug, Clone)]
+/// Represent a Sprite
 pub struct Sprite {
     raw: image::RgbaImage,
     width: u32,
@@ -16,13 +17,15 @@ impl Sprite {
             raw: img,
         })
     }
+    /// Create [Sprite] with a size of 1x1
     pub fn new_blank() -> Sprite {
         Sprite {
             width: 1,
             height: 1,
-            raw: image::ImageBuffer::from_raw(1, 1, vec![0_u8; 4]).unwrap() as image::RgbaImage,
+            raw: image::ImageBuffer::from_raw(1, 1, vec![0_u8; 4]).unwrap(), //as image::RgbaImage,
         }
     }
+    /// Create [Sprite] with given size and [Color]
     pub fn new_with_color(w: u32, h: u32, col: Color) -> Self {
         let mut raw = vec![0; (w * h * 4) as usize];
         for index in (0..(w * h * 4)).step_by(4) {
@@ -35,18 +38,18 @@ impl Sprite {
             width: w,
             height: h,
             raw: image::ImageBuffer::from_raw(w, h, raw) /*; (w * h) as usize]) */
-                .unwrap() as image::RgbaImage,
+                .unwrap(), // as image::RgbaImage,
         }
     }
-
+    /// Create a blank [Sprite] with given size
     pub fn new(w: u32, h: u32) -> Sprite {
         Sprite {
             width: w,
             height: h,
-            raw: image::ImageBuffer::from_raw(w, h, vec![0_u8; (w * h * 4) as usize]).unwrap()
-                as image::RgbaImage,
+            raw: image::ImageBuffer::from_raw(w, h, vec![0_u8; (w * h * 4) as usize]).unwrap(), //as image::RgbaImage,
         }
     }
+    /// Set pixel's [Color] on a [Sprite]
     pub fn set_pixel(&mut self, x: u32, y: u32, col: Color) {
         self.raw.get_pixel_mut(x, y).0 = [col.r, col.g, col.b, col.a];
     }
@@ -56,12 +59,15 @@ impl Sprite {
             None => None,
         }
     }
+    /// Return the [Color] of the pixel at given coordinates, if it exist
     pub fn get_pixel(&self, x: u32, y: u32) -> Option<Color> {
         if x >= self.width || y >= self.height {
             return Some(Color::new_with_alpha(0, 0, 0, 0));
         }
         Sprite::ptc(Some(self.raw.get_pixel(x, y)))
     }
+    /// Return the [Color] of the pixel at given sample
+    /// It needs to be between 0.0 and 1.0 (both included)
     pub fn get_sample(&self, x: f64, y: f64) -> Color {
         if x < 0.0 || x > 1.0 || y < 0.0 || y > 1.0 {
             panic!("WTF ARE YOU DOING , SAMPLE NOT IN BOUND")
@@ -70,48 +76,80 @@ impl Sprite {
         let sample_y = ((y * (self.height) as f64) as u32).min(self.height - 1);
         Sprite::ptc(Some(self.raw.get_pixel(sample_x, sample_y))).unwrap()
     }
+    /// Return the raw Image of the sprite
     pub fn get_raw(&self) -> image::RgbaImage {
         self.raw.clone()
     }
 }
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+/// Represent a [Color] in a RGBA format
 pub struct Color {
+    /// Red part of the color
     pub r: u8,
+    /// Green part of the color
     pub g: u8,
+    /// Blue part of the color
     pub b: u8,
+    /// Alpha part of the color
     pub a: u8,
 }
 
 impl Color {
+    /// Return a [Color] with alpha set at 255
     pub const fn new(r: u8, g: u8, b: u8) -> Color {
         Color { r, g, b, a: 255 }
     }
+    /// Return a [Color] where alpha is also a argument
     pub const fn new_with_alpha(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
+    /// Const [Color]
     pub const WHITE: Color = Color::new(255, 255, 255);
+    /// Const [Color]
     pub const GREY: Color = Color::new(192, 192, 192);
+    /// Const [Color]
     pub const DARK_GREY: Color = Color::new(128, 128, 128);
+    /// Const [Color]
     pub const VERY_DARK_GREY: Color = Color::new(64, 64, 64);
+    /// Const [Color]
     pub const RED: Color = Color::new(255, 0, 0);
+    /// Const [Color]
     pub const DARK_RED: Color = Color::new(128, 0, 0);
+    /// Const [Color]
     pub const VERY_DARK_RED: Color = Color::new(64, 0, 0);
+    /// Const [Color]
     pub const YELLOW: Color = Color::new(255, 255, 0);
+    /// Const [Color]
     pub const DARK_YELLOW: Color = Color::new(128, 128, 0);
+    /// Const [Color]
     pub const VERY_DARK_YELLOW: Color = Color::new(64, 64, 0);
+    /// Const [Color]
     pub const GREEN: Color = Color::new(0, 255, 0);
+    /// Const [Color]
     pub const DARK_GREEN: Color = Color::new(0, 128, 0);
+    /// Const [Color]
     pub const VERY_DARK_GREEN: Color = Color::new(0, 64, 0);
+    /// Const [Color]
     pub const CYAN: Color = Color::new(0, 255, 255);
+    /// Const [Color]
     pub const DARK_CYAN: Color = Color::new(0, 128, 128);
+    /// Const [Color]
     pub const VERY_DARK_CYAN: Color = Color::new(0, 64, 64);
+    /// Const [Color]
     pub const BLUE: Color = Color::new(0, 0, 255);
+    /// Const [Color]
     pub const DARK_BLUE: Color = Color::new(0, 0, 128);
+    /// Const [Color]
     pub const VERY_DARK_BLUE: Color = Color::new(0, 0, 64);
+    /// Const [Color]
     pub const MAGENTA: Color = Color::new(255, 0, 255);
+    /// Const [Color]
     pub const DARK_MAGENTA: Color = Color::new(128, 0, 128);
+    /// Const [Color]
     pub const VERY_DARK_MAGENTA: Color = Color::new(64, 0, 64);
+    /// Const [Color]
     pub const BLACK: Color = Color::new(0, 0, 0);
+    /// Const [Color]
     pub const BLANK: Color = Color::new_with_alpha(0, 0, 0, 0);
 }
 

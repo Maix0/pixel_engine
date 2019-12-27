@@ -1,35 +1,70 @@
-use crate::handler;
 use crate::keyboard;
 use crate::keyboard::KeySet;
-use crate::screen;
+use crate::ScreenHandle;
+use crate::{GLEvents, GLHandle};
 type GameLogic = &'static (dyn Fn(&mut Engine));
+
+/**
+ *  Bone of the Engine, join everything;
+ *  
+ *  ## Working window:
+ *  ```
+ *  use pixel_engin_gl as engine;
+ *  fn main() {
+ *      let game = engine::Engine::new(String::new("A window title"), (10,10,10),&game_logic);
+ *      game.start();
+ *      game.destroy();
+ *  }
+ *  fn game_logic(game:&mut engine::Engine) {
+ *      // Code run before everything, only once
+ *      while game.new_frame() {
+ *          // Your game code, run every frame
+ *      }
+ *      // Code run after everything
+ *  }
+ *  ```
+ **/
 
 pub struct Engine {
     /* FRONTEND */
+    /// Main title of the window, Window's full title will be "Title - fps"
     pub title: String,
+    /// Size of the window, with (x-size,y-size,pixel-size)
     pub size: (u32, u32, u32),
 
     /* TIME */
+    /// Time between current frame and last frame, usefull for movement's calculations
     pub elapsed: f64,
     timer: std::time::SystemTime,
     frame_count: u64,
     frame_timer: f64,
 
     /* BACKEND */
+    /// Game's core, defining what the window will do
     pub main: GameLogic,
-    pub screen: screen::ScreenHandle,
+    /// Game's screen manager, let you draw on the screen
+    pub screen: ScreenHandle,
     //handler: GlHandler,
-    handle: handler::GLHandle,
+    handle: GLHandle,
     k_pressed: std::collections::HashSet<keyboard::Key>,
     k_held: std::collections::HashSet<keyboard::Key>,
     k_released: std::collections::HashSet<keyboard::Key>,
 }
+impl std::fmt::Debug for Engine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Engine")
+            .field("title", &self.title)
+            .field("size", &self.size)
+            .field("elapsed", &self.elapsed)
+            .field("main", &"main function")
+            .field("screen", &self.screen)
+            .finish()
+    }
+}
 
 impl Engine {
+    /// Create a new [Engine]
     pub fn new(title: String, size: (u32, u32, u32), func: GameLogic) -> Self {
-        let (sender_handle, receiver_handler) = std::sync::mpsc::channel();
-        let (sender_handler, receiver_handle) = std::sync::mpsc::channel();
-        handler::GlHandler::spawn_thread(size, receiver_handler, sender_handler);
         Engine {
             /* FRONTEND */
             size,
@@ -42,22 +77,24 @@ impl Engine {
             elapsed: 0f64,
             /* BACKEND */
             main: func,
-            screen: crate::screen::ScreenHandle::spawn_thread(size),
-            handle: handler::GLHandle::new(sender_handle, receiver_handle),
+            screen: ScreenHandle::spawn_thread(size),
+            handle: GLHandle::new(size),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
         }
     }
-    pub fn run(&mut self) -> Result<(), String> {
+    /// Run the engine;
+    pub fn run(&mut self) {
         (self.main)(self);
-        Ok(())
     }
+    /// Destroy everything tied to the engine
     pub fn stop(&mut self) {
         self.handle.destroy();
         self.screen.destroy();
     }
-
+    /// Do all sort of things needed to update the engine. Will return a [bool] if the game
+    /// needs to be shut down
     pub fn new_frame(&mut self) -> bool {
         /* FRAME STUFF */
         self.elapsed = (std::time::SystemTime::now()
@@ -85,7 +122,7 @@ impl Engine {
             .recv_timeout(std::time::Duration::from_millis(10))
         {
             match event {
-                handler::GLEvents::Keyboard { inp } => {
+                GLEvents::Keyboard { inp } => {
                     if inp.state == glutin::ElementState::Released {
                         self.k_pressed
                             .remove(&(keyboard::Key::from(inp.clone())).clone());
@@ -106,24 +143,26 @@ impl Engine {
 
         /* FRAME UPDATING */
 
-        if Some(true) == self.screen.updated() {
+        if self.screen.updated {
             if let Some(img) = self.screen.get_image() {
                 self.handle.update_frame(img);
             }
         }
         true
     }
-
+    /// Know if key is pressed
     pub fn is_pressed(&self, keycode: keyboard::Keycodes) -> bool {
         self.k_pressed.has(keycode)
     }
+    /// Know if key is held
     pub fn is_held(&self, keycode: keyboard::Keycodes) -> bool {
         self.k_held.has(keycode)
     }
+    /// Know if key is released
     pub fn is_released(&self, keycode: keyboard::Keycodes) -> bool {
         self.k_released.has(keycode)
     }
-
+    /// Know if a key is pressed or held
     pub fn get_key(&self, keycode: keyboard::Keycodes) -> Option<&keyboard::Key> {
         if self.is_pressed(keycode) {
             for k in &self.k_pressed {

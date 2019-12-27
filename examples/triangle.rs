@@ -1,13 +1,13 @@
 //extern crate pixel_engine_gl as engine;
 use pixel_engine_gl as engine;
 fn main() -> Result<(), String> {
-    let mut engine = engine::logic::Engine::new("Triangle".to_string(), (500, 500, 1), &game_logic);
+    let mut engine = engine::Engine::new("Triangle".to_string(), (500, 500, 1), &game_logic);
     engine.run();
     engine.stop();
     Ok(())
 }
 
-fn game_logic(game: &mut engine::logic::Engine) /*-> Result<(), String> */
+fn game_logic(game: &mut engine::Engine) /*-> Result<(), String> */
 {
     fn dist(p1: (i32, i32), p2: (i32, i32)) -> f64 {
         return (((p2.0 - p1.0).pow(2) + (p2.1 - p1.1).pow(2)) as f64).sqrt();
@@ -56,7 +56,7 @@ fn game_logic(game: &mut engine::logic::Engine) /*-> Result<(), String> */
                     game.screen.draw(
                         x,
                         y,
-                        engine::graphics::Color::new(
+                        engine::Color::new(
                             ((1f64 - dist((x as i32, y as i32), red) / dist(red, blue)) * 255f64)
                                 as u8,
                             ((1f64 - dist((x as i32, y as i32), green) / dist(red, blue)) * 255f64)
@@ -66,7 +66,7 @@ fn game_logic(game: &mut engine::logic::Engine) /*-> Result<(), String> */
                         ),
                     )
                 } else {
-                    game.screen.draw(x, y, engine::graphics::Color::BLACK)
+                    game.screen.draw(x, y, engine::Color::BLACK)
                 }
             }
         }
