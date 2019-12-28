@@ -60,6 +60,7 @@ impl GlHandler {
 
     const INDICES: &'static [u16] = &[0, 1, 2, 2, 3, 0];
     pub fn new(size: (u32, u32, u32)) -> GlHandler {
+        use gfx::Factory;
         let events_loop = glutin::EventsLoop::new();
         let window_config = glutin::WindowBuilder::new()
             .with_title("".to_string())
@@ -99,8 +100,11 @@ impl GlHandler {
         let (vertex_buffer, slice) =
             factory.create_vertex_buffer_with_slice(&Self::SQUARE, Self::INDICES);
         let texture = Self::load_texture(&mut factory, Sprite::new_blank().get_raw());
-        let sampler = factory.create_sampler_linear();
-
+        let sampler = factory.create_sampler(gfx::texture::SamplerInfo::new(
+            gfx::texture::FilterMethod::Scale,
+            gfx::texture::WrapMode::Tile,
+        )); //factory.create_sampler_linear();
+            //let () = sampler;
         let data = pipe::Data {
             vbuf: vertex_buffer,
             awesome: (texture, sampler),
@@ -125,7 +129,7 @@ impl GlHandler {
         F: gfx::Factory<R>,
         R: gfx::Resources,
     {
-        let (width, height) = img.dimensions();
+        let (width, height) = /*(size.0 * size.2, size.1 * size.2); */img.dimensions();
         let kind =
             gfx::texture::Kind::D2(width as u16, height as u16, gfx::texture::AaMode::Single);
         let (_, view) = factory
@@ -149,7 +153,7 @@ impl GlHandler {
         self.device.cleanup();
     }
 
-    pub fn spawn_thread(
+    fn spawn_thread(
         size: (u32, u32, u32),
         receiver_handler: std::sync::mpsc::Receiver<GLCommands>,
         sender_handler: std::sync::mpsc::Sender<GLEvents>,
@@ -157,6 +161,7 @@ impl GlHandler {
         std::thread::spawn(move || {
             use glutin::{Event, WindowEvent};
             let mut handler = GlHandler::new(size.clone());
+            let mut events = Vec::new();
             while let Ok(msg) = receiver_handler.recv() {
                 use GLCommands::*;
                 match msg {
@@ -168,14 +173,17 @@ impl GlHandler {
                             if let Event::WindowEvent { event, .. } = event {
                                 match event {
                                     WindowEvent::KeyboardInput { input: inp, .. } => {
-                                        sender_handler
-                                            .send(GLEvents::Keyboard { inp })
-                                            .expect("Error while sending keyboard events");
+                                        events.push(Events::Keyboard { inp });
                                     }
                                     _ => {}
                                 }
                             }
                         });
+
+                        sender_handler
+                            .send(GLEvents::Events { e: events })
+                            .expect("Error while sending events");
+                        events = Vec::new();
                     } //_ => println!("{:?}", msg),
                 }
             }
@@ -201,22 +209,27 @@ pub enum GLCommands {
     /// Request processing of all events
     RequestEvents,
 }
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 /// Events that are returned after a request
-pub enum GLEvents {
+pub enum Events {
     /// A keyboard input
     Keyboard {
         /// The input
         inp: glutin::KeyboardInput,
     },
 }
+
+enum GLEvents {
+    Events { e: Vec<Events> },
+}
+
 #[derive(Debug)]
 /// An Handle to talk to the GLHandler's Thread
 pub struct GLHandle {
     /// Send message to the Handler
     pub sender: std::sync::mpsc::Sender<GLCommands>,
     /// Receive message from the Handler
-    pub receiver: std::sync::mpsc::Receiver<GLEvents>,
+    receiver: std::sync::mpsc::Receiver<GLEvents>,
 }
 
 impl GLHandle {
@@ -231,10 +244,17 @@ impl GLHandle {
         }
     }
     /// Requests the processing of all events
-    pub fn request_events(&mut self) {
+    pub fn events(&mut self) -> Vec<Events> {
         self.sender
             .send(GLCommands::RequestEvents)
             .expect("Error while sending RequestEvents");
+        return match self.receiver.recv() {
+            Ok(e) => match e {
+                GLEvents::Events { e } => e,
+                //_ => Vec::new(),
+            },
+            Err(_) => Vec::new(),
+        };
     }
     /// Updated the title with given screen
     pub fn update_title(&mut self, text: String) {

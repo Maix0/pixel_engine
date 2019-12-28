@@ -1,5 +1,5 @@
 pub use glutin::VirtualKeyCode as Keycodes;
-#[derive(Eq, PartialEq, Debug, Hash, Clone)]
+#[derive(Eq, PartialEq, Debug, Hash, Clone, Copy)]
 /// Represent a Key
 pub struct Key {
     /// The keys modifiers

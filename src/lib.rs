@@ -1,3 +1,5 @@
+//! A pixel base game engine
+
 #![cfg_attr(target_os = "emscripten", allow(unused_mut))]
 #[macro_use]
 extern crate gfx;
@@ -7,7 +9,7 @@ extern crate glutin;
 #[deny(
     missing_docs,
     missing_debug_implementations,
-    //missing_copy_implementations,
+    missing_copy_implementations,
     trivial_casts,
     trivial_numeric_casts,
     unsafe_code,

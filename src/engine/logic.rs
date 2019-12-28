@@ -1,7 +1,7 @@
 use crate::keyboard;
 use crate::keyboard::KeySet;
 use crate::ScreenHandle;
-use crate::{GLEvents, GLHandle};
+use crate::{Events, GLHandle};
 type GameLogic = &'static (dyn Fn(&mut Engine));
 
 /**
@@ -9,13 +9,13 @@ type GameLogic = &'static (dyn Fn(&mut Engine));
  *  
  *  ## Working window:
  *  ```
- *  use pixel_engin_gl as engine;
+ *  use pixel_engine_gl as engine;
  *  fn main() {
- *      let game = engine::Engine::new(String::new("A window title"), (10,10,10),&game_logic);
- *      game.start();
- *      game.destroy();
+ *      let mut game = engine::Engine::new(String::from("A window title"), (10,10,10),&game_logic);
+ *      game.run();
  *  }
  *  fn game_logic(game:&mut engine::Engine) {
+ *      # return; // This is to avoid the loop and everything during tests
  *      // Code run before everything, only once
  *      while game.new_frame() {
  *          // Your game code, run every frame
@@ -24,7 +24,6 @@ type GameLogic = &'static (dyn Fn(&mut Engine));
  *  }
  *  ```
  **/
-
 pub struct Engine {
     /* FRONTEND */
     /// Main title of the window, Window's full title will be "Title - fps"
@@ -61,6 +60,11 @@ impl std::fmt::Debug for Engine {
             .finish()
     }
 }
+impl Drop for Engine {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
 
 impl Engine {
     /// Create a new [Engine]
@@ -77,7 +81,7 @@ impl Engine {
             elapsed: 0f64,
             /* BACKEND */
             main: func,
-            screen: ScreenHandle::spawn_thread(size),
+            screen: ScreenHandle::spawn_thread((size.0, size.1)),
             handle: GLHandle::new(size),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
@@ -88,8 +92,7 @@ impl Engine {
     pub fn run(&mut self) {
         (self.main)(self);
     }
-    /// Destroy everything tied to the engine
-    pub fn stop(&mut self) {
+    fn stop(&mut self) {
         self.handle.destroy();
         self.screen.destroy();
     }
@@ -112,33 +115,32 @@ impl Engine {
                 .update_title(format!("{} - {}fps", self.title, self.frame_count));
             self.frame_count = 0;
         }
+        for key in &self.k_pressed {
+            self.k_held.insert(*key);
+        }
+        self.k_pressed.clear();
+        self.k_released.clear();
 
-        self.handle.request_events();
-        self.k_held = self.k_pressed.drain().collect();
-        self.k_released.drain();
-        while let Ok(event) = self
-            .handle
-            .receiver
-            .recv_timeout(std::time::Duration::from_millis(10))
-        {
+        for event in self.handle.events() {
             match event {
-                GLEvents::Keyboard { inp } => {
-                    if inp.state == glutin::ElementState::Released {
-                        self.k_pressed
-                            .remove(&(keyboard::Key::from(inp.clone())).clone());
-                        self.k_held
-                            .remove(&(keyboard::Key::from(inp.clone())).clone());
-                        self.k_released
-                            .insert((keyboard::Key::from(inp.clone())).clone());
-                    } else {
-                        if !self.k_held.has(inp.virtual_keycode.unwrap()) {
+                Events::Keyboard { inp } => {
+                    if let Some(k) = inp.virtual_keycode {
+                        if inp.state == glutin::ElementState::Released {
                             self.k_pressed
+                                .remove(&(keyboard::Key::from(inp.clone())).clone());
+                            self.k_held
+                                .remove(&(keyboard::Key::from(inp.clone())).clone());
+                            self.k_released
                                 .insert((keyboard::Key::from(inp.clone())).clone());
+                        } else {
+                            if !self.k_held.has(k) {
+                                self.k_pressed
+                                    .insert((keyboard::Key::from(inp.clone())).clone());
+                            }
                         }
                     }
                 }
             }
-            println!("{:?}", event);
         }
 
         /* FRAME UPDATING */

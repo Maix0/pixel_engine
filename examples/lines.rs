@@ -1,30 +1,18 @@
 extern crate pixel_engine_gl as engine;
 
-fn main() -> Result<(), String> {
-    let mut game = engine::logic::Engine::new("Text".to_owned(), (25, 25, 20), &game_logic);
-    game.run()?;
-    Ok(())
+fn main() {
+    let mut game = engine::Engine::new("Text".to_owned(), (25, 25, 20), &game_logic);
+    game.run();
 }
-fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
+fn game_logic(game: &mut engine::Engine) {
     let running = true;
     let mut start = vec![0, 0];
     let mut end = vec![5u32, 5u32];
     let mut toggle = false;
     while game.new_frame() && running {
-        /*for x in 0..game.size.0 {
-            for y in 0..game.size.1 {
-                game.screen.draw(x, y, [0.5, 0.5, 0.5].into())
-            }
-        }*/
-        if game.is_pressed(A) {
-            game.screen
-                .screenshot(std::path::Path::new("./screenshot.png"));
-        }
-        //game.screen.clear([1, 1, 1].into());
         game.screen.clear([0, 0, 0].into());
-        use engine::keyboard::Keycodes::{Down, Left, Right, Space, Up, A};
+        use engine::keyboard::Keycodes::{Down, Left, Right, Space, Up};
         // END POINT CONTROL
-
         if game.is_pressed(Space) {
             toggle = !toggle;
         }
@@ -32,10 +20,10 @@ fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
             if (game.is_pressed(Left) || game.is_held(Left)) && end[0] > 0 {
                 end[0] -= 1;
             }
-            if game.is_pressed(Right) || game.is_held(Right) {
+            if (game.is_pressed(Right) || game.is_held(Right)) && end[0] < game.size.0 - 1 {
                 end[0] += 1;
             }
-            if game.is_pressed(Down) || game.is_held(Down) {
+            if (game.is_pressed(Down) || game.is_held(Down)) && end[1] < game.size.1 - 1 {
                 end[1] += 1;
             }
             if (game.is_pressed(Up) || game.is_held(Up)) && end[1] > 0 {
@@ -46,10 +34,10 @@ fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
             if (game.is_pressed(Left) || game.is_held(Left)) && start[0] > 0 {
                 start[0] -= 1;
             }
-            if game.is_pressed(Right) || game.is_held(Right) {
+            if (game.is_pressed(Right) || game.is_held(Right)) && start[0] < game.size.0 - 1 {
                 start[0] += 1;
             }
-            if game.is_pressed(Down) || game.is_held(Down) {
+            if (game.is_pressed(Down) || game.is_held(Down)) && start[1] < game.size.1 - 1 {
                 start[1] += 1;
             }
             if (game.is_pressed(Up) || game.is_held(Up)) && start[1] > 0 {
@@ -61,10 +49,10 @@ fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
             (end[0] as u32, end[1] as u32),
             [1.0, 1.0, 1.0].into(),
         );
+
         game.screen
             .draw(start[0] as u32, start[1] as u32, [0, 255, 0].into());
         game.screen
             .draw(end[0] as u32, end[1] as u32, [255, 0, 0].into());
     }
-    Ok(())
 }

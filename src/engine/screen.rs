@@ -29,12 +29,12 @@ pub struct ScreenHandle {
 }
 struct Screen {
     screen: Sprite,
-    size: (u32, u32, u32),
+    size: (u32, u32),
     textsheet: Sprite,
 }
 impl ScreenHandle {
     /// Created a new thread to handle Screen
-    pub fn spawn_thread(size: (u32, u32, u32)) -> Self {
+    pub fn spawn_thread(size: (u32, u32)) -> Self {
         let (sender_handle, receiver_screen) = std::sync::mpsc::channel();
         let (sender_screen, receiver_handle) = std::sync::mpsc::channel();
 
@@ -210,12 +210,12 @@ impl Screen {
 }
 
 impl Screen {
-    pub fn new(size: (u32, u32, u32)) -> Screen {
-        if size.0 <= 0 || size.1 <= 0 || size.2 <= 0 {
+    pub fn new(size: (u32, u32)) -> Screen {
+        if size.0 <= 0 || size.1 <= 0 {
             panic!("Size elements can't be equal to 0")
         }
         Screen {
-            screen: Sprite::new(size.0 * size.2, size.1 * size.2),
+            screen: Sprite::new(size.0 /* * size.2*/, size.1 /* * size.2*/),
             size,
 
             textsheet: Self::create_text(),
@@ -301,16 +301,7 @@ impl Screen {
         if x >= self.size.0 || y >= self.size.1 {
             return;
         }
-        if self.size.2 == 1 {
-            self.screen.set_pixel(x, y, col);
-        } else {
-            for i in 0..(self.size.2) {
-                for j in 0..(self.size.2) {
-                    self.screen
-                        .set_pixel(x * self.size.2 + i, y * self.size.2 + j, col);
-                }
-            }
-        }
+        self.screen.set_pixel(x, y, col);
     }
     fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: String) {
         let mut sx = 0;
@@ -393,7 +384,10 @@ impl Screen {
         }
     }
     fn clear(&mut self, col: Color) {
-        self.screen =
-            Sprite::new_with_color(self.size.0 * self.size.2, self.size.1 * self.size.2, col);
+        self.screen = Sprite::new_with_color(
+            self.size.0, /* * self.size.2*/
+            self.size.1, /* * self.size.2*/
+            col,
+        );
     }
 }
