@@ -1,6 +1,8 @@
+use super::graphics::{Color, Sprite};
 use crate::gfx;
-use crate::{Color, Sprite};
-
+use gfx::{traits::FactoryExt, Device};
+use glutin::{Event, WindowEvent};
+use memblock::MemBlock;
 gfx_defines! {
     vertex Vertex {
         pos: [f32; 2] = "a_Pos",
@@ -28,9 +30,16 @@ pub struct GlHandler {
     slice: gfx::Slice<gfx_device_gl::Resources>,
     data: pipe::Data<gfx_device_gl::Resources>,
 }
+#[derive(Debug, Clone, Copy)]
+pub enum Events {
+    /// A keyboard input
+    Keyboard {
+        /// The input
+        inp: glutin::KeyboardInput,
+    },
+    Close,
+}
 
-use gfx::traits::FactoryExt;
-use gfx::Device;
 //use glutin::{Event, WindowEvent};
 impl GlHandler {
     const WHITE: [f32; 3] = [1.0, 1.0, 1.0];
@@ -58,8 +67,26 @@ impl GlHandler {
         },
     ];
 
+    pub fn events(&mut self) -> Vec<Events> {
+        let mut events = Vec::new();
+        self.event_loop.poll_events(|event| {
+            if let Event::WindowEvent { event, .. } = event {
+                match event {
+                    WindowEvent::KeyboardInput { input: inp, .. } => {
+                        events.push(Events::Keyboard { inp });
+                    }
+                    WindowEvent::CloseRequested => {
+                        events.push(Events::Close);
+                    }
+                    _ => {}
+                }
+            }
+        });
+        events
+    }
+
     const INDICES: &'static [u16] = &[0, 1, 2, 2, 3, 0];
-    pub fn new(size: (u32, u32, u32)) -> GlHandler {
+    pub fn new(size: (u32, u32, u32)) -> Self {
         use gfx::Factory;
         let events_loop = glutin::EventsLoop::new();
         let window_config = glutin::WindowBuilder::new()
@@ -123,13 +150,13 @@ impl GlHandler {
     }
     pub fn load_texture<F, R>(
         factory: &mut F,
-        img: image::RgbaImage,
+        img: MemBlock,
     ) -> gfx::handle::ShaderResourceView<R, [f32; 4]>
     where
         F: gfx::Factory<R>,
         R: gfx::Resources,
     {
-        let (width, height) = /*(size.0 * size.2, size.1 * size.2); */img.dimensions();
+        let (width, height) = img.size();
         let kind =
             gfx::texture::Kind::D2(width as u16, height as u16, gfx::texture::AaMode::Single);
         let (_, view) = factory
@@ -141,10 +168,10 @@ impl GlHandler {
             .unwrap();
         view
     }
-    fn update_title(&mut self, text: String) {
+    pub fn update_title(&mut self, text: String) {
         self.window_ctx.window().set_title(&text);
     }
-    fn update_frame(&mut self, image: image::RgbaImage) {
+    pub fn update_frame(&mut self, image: MemBlock) {
         self.data.awesome.0 = Self::load_texture(&mut self.factory, image);
         self.encoder.clear(&self.data.out, Color::GREEN.into());
         self.encoder.draw(&self.slice, &self.pso, &self.data);
@@ -152,7 +179,7 @@ impl GlHandler {
         self.window_ctx.swap_buffers().unwrap();
         self.device.cleanup();
     }
-
+    /*
     fn spawn_thread(
         size: (u32, u32, u32),
         receiver_handler: std::sync::mpsc::Receiver<GLCommands>,
@@ -188,9 +215,9 @@ impl GlHandler {
                 }
             }
         });
-    }
+    }*/
 }
-
+/*
 #[derive(Debug)]
 /// Commands that are being sent to the Handler
 pub enum GLCommands {
@@ -218,11 +245,13 @@ pub enum Events {
         inp: glutin::KeyboardInput,
     },
 }
-
+*/
+/*
 enum GLEvents {
     Events { e: Vec<Events> },
 }
-
+*/
+/*
 #[derive(Debug)]
 /// An Handle to talk to the GLHandler's Thread
 pub struct GLHandle {
@@ -231,47 +260,4 @@ pub struct GLHandle {
     /// Receive message from the Handler
     receiver: std::sync::mpsc::Receiver<GLEvents>,
 }
-
-impl GLHandle {
-    /// Create a new thread's for the GLHandler and return a Handle to talk with
-    pub fn new(size: (u32, u32, u32)) -> Self {
-        let (sender_handle, receiver_handler) = std::sync::mpsc::channel();
-        let (sender_handler, receiver_handle) = std::sync::mpsc::channel();
-        GlHandler::spawn_thread(size, receiver_handler, sender_handler);
-        GLHandle {
-            sender: sender_handle,
-            receiver: receiver_handle,
-        }
-    }
-    /// Requests the processing of all events
-    pub fn events(&mut self) -> Vec<Events> {
-        self.sender
-            .send(GLCommands::RequestEvents)
-            .expect("Error while sending RequestEvents");
-        return match self.receiver.recv() {
-            Ok(e) => match e {
-                GLEvents::Events { e } => e,
-                //_ => Vec::new(),
-            },
-            Err(_) => Vec::new(),
-        };
-    }
-    /// Updated the title with given screen
-    pub fn update_title(&mut self, text: String) {
-        self.sender
-            .send(GLCommands::ChangeTitle { text })
-            .expect("Error while sending TitleChange");
-    }
-    /// Updated window with given image
-    pub fn update_frame(&mut self, image: image::RgbaImage) {
-        self.sender
-            .send(GLCommands::FrameUpdate { image })
-            .expect("Error while sending UpdateFrame");
-    }
-    /// Destroy GLHandler's Thread
-    pub fn destroy(&mut self) {
-        self.sender
-            .send(GLCommands::Destroy)
-            .expect("Error while sending Destroy");
-    }
-}
+*/

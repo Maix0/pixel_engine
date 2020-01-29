@@ -1,172 +1,14 @@
-use crate::{Color, Sprite};
-#[rustfmt::skip]
+use super::graphics::{Color, Sprite};
+use memblock::MemBlock;
 #[derive(Debug)]
-enum Commands {
-    /* Draw */
-    Draw        {x: u32, y: u32, col: Color},
-    DrawLine    {p1: (u32, u32), p2: (u32, u32),col: Color},
-    DrawCircle  {x: u32, y: u32, r:u32, col: Color},
-    DrawText    {x: u32, y: u32, scale: u32, col: Color, text: String},
-    DrawRect    {x: u32, y: u32, w: u32, h: u32, col: Color},    
-    /* Fill */
-    FillCircle  {x: u32, y: u32, r:u32, col: Color},
-    /* Other */
-    Clear       {col: Color},
-    RequestFrame,
-    Destroy,
-}
-enum Values {
-    RequestedImage { image: image::RgbaImage },
-}
-
-/// An Handle to talk to the Screen's Thread
-#[derive(Debug)]
-pub struct ScreenHandle {
-    sender: std::sync::mpsc::Sender<Commands>,
-    receiver: std::sync::mpsc::Receiver<Values>,
-    /// If the screen has changed during current frame
-    pub updated: bool,
-}
-struct Screen {
-    screen: Sprite,
-    size: (u32, u32),
-    textsheet: Sprite,
-}
-impl ScreenHandle {
-    /// Created a new thread to handle Screen
-    pub fn spawn_thread(size: (u32, u32)) -> Self {
-        let (sender_handle, receiver_screen) = std::sync::mpsc::channel();
-        let (sender_screen, receiver_handle) = std::sync::mpsc::channel();
-
-        std::thread::spawn(move || {
-            let mut screen = Screen::new(size);
-            while let Ok(r) = receiver_screen.recv() {
-                use Commands::*;
-                match r {
-                    /* Draw */
-                    Draw { x, y, col } => screen.draw(x, y, col),
-                    DrawRect { x, y, w, h, col } => screen.draw_rect(x, y, w, h, col),
-                    DrawCircle { x, y, r, col } => screen.draw_circle(x, y, r, col),
-                    DrawLine { p1, p2, col } => screen.draw_line(p1, p2, col),
-                    DrawText {
-                        x,
-                        y,
-                        scale,
-                        col,
-                        text,
-                    } => screen.draw_text(x, y, scale, col, text),
-                    /* Fill */
-                    FillCircle { x, y, r, col } => screen.fill_circle(x, y, r, col),
-                    /* Other */
-                    Clear { col } => screen.clear(col),
-
-                    RequestFrame => sender_screen
-                        .send(Values::RequestedImage {
-                            image: screen.screen.get_raw(),
-                        })
-                        .expect("Error while sending image after requested"),
-                    Destroy => break,
-                    //_ => panic!("{:?} isn't implemented in the threads receiver!!!!", r),
-                    //_ => println!("{:?}", r),
-                };
-            }
-        });
-        ScreenHandle {
-            sender: sender_handle,     //std::sync::mpsc::Sender<Commands>,
-            receiver: receiver_handle, //std::sync::mpsc::Receiver<Values>,
-            updated: false,
-        }
-    }
-    /// Return the screen's image
-    pub fn get_image(&mut self) -> Option<image::RgbaImage> {
-        self.updated = false;
-        self.sender
-            .send(Commands::RequestFrame)
-            .expect("Error while requesting screen's Frame");
-        if let Ok(response) = self.receiver.recv() {
-            return match response {
-                Values::RequestedImage { image } => Some(image),
-            };
-        }
-        return None;
-    }
-    /// Destroy Screen's thread
-    pub fn destroy(&mut self) {
-        self.sender
-            .send(Commands::Destroy)
-            .expect("Error while sending destroy request");
-    }
-    /// Draw a single pixel to the screen
-    pub fn draw(&mut self, x: u32, y: u32, col: Color) {
-        self.updated = true;
-        self.sender
-            .send(Commands::Draw { x, y, col })
-            .expect("Error while sending Draw");
-    }
-    /// Draw a line between two points
-    pub fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: Color) {
-        self.updated = true;
-        self.sender
-            .send(Commands::DrawLine { p1, p2, col })
-            .expect("Error while sending DrawLine");
-    }
-    /// Draw a cirle at given centre with given radius
-    pub fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
-        self.updated = true;
-        self.sender
-            .send(Commands::DrawCircle { x, y, r, col })
-            .expect("Error while sending DrawCircle");
-    }
-    /// Draw text at given coordinates
-    pub fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: String) {
-        self.updated = true;
-        self.sender
-            .send(Commands::DrawText {
-                x,
-                y,
-                scale,
-                col,
-                text,
-            })
-            .expect("Error while sending DrawText");
-    }
-    /// Draw a rectangle
-    pub fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
-        self.updated = true;
-        self.sender
-            .send(Commands::DrawRect { x, y, w, h, col })
-            .expect("Error while sending DrawRect");
-    }
-
-    // FILL
-    /// Fill a circle at given center with given raduis
-    pub fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
-        self.updated = true;
-        self.sender
-            .send(Commands::FillCircle { x, y, r, col })
-            .expect("Error while sending FillCircle");
-    }
-
-    // OTHER
-    /// Clear the screen with given [Color]
-    pub fn clear(&mut self, col: Color) {
-        self.updated = true;
-        self.sender
-            .send(Commands::Clear { col })
-            .expect("Error while sending Clear");
-    }
+pub struct Screen {
+    pub(crate) screen: Sprite,
+    pub(crate) size: (u32, u32),
+    pub(crate) textsheet: Sprite,
+    pub(crate) updated: bool,
 }
 
 impl Screen {
-    /*pub fn destroy(&self) {}
-    pub fn get_image(&self) -> image::RgbaImage {
-        self.screen.get_raw()
-    }
-
-    pub fn screenshot<'a>(&self, filename: &'a std::path::Path) {
-        self.screen.get_raw().save(filename).unwrap();
-    }
-    */
     fn create_text() -> Sprite {
         let mut sheet = Sprite::new(128, 48);
         let mut data = String::new();
@@ -189,7 +31,7 @@ impl Screen {
         let mut px = 0;
         let mut py = 0;
         for b in (0..1024).step_by(4) {
-            let sym1 = data.chars().nth(b + 0).unwrap() as u32 - 48;
+            let sym1 = data.chars().nth(b).unwrap() as u32 - 48;
             let sym2 = data.chars().nth(b + 1).unwrap() as u32 - 48;
             let sym3 = data.chars().nth(b + 2).unwrap() as u32 - 48;
             let sym4 = data.chars().nth(b + 3).unwrap() as u32 - 48;
@@ -211,23 +53,23 @@ impl Screen {
 
 impl Screen {
     pub fn new(size: (u32, u32)) -> Screen {
-        if size.0 <= 0 || size.1 <= 0 {
+        if size.0 == 0 || size.1 == 0 {
             panic!("Size elements can't be equal to 0")
         }
         Screen {
             screen: Sprite::new(size.0 /* * size.2*/, size.1 /* * size.2*/),
             size,
-
             textsheet: Self::create_text(),
+            updated: false,
         }
     }
-    fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
+    pub fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
         self.draw_line((x, y), (x + w, y), col);
         self.draw_line((x + w, y), (x + w, y + h), col);
         self.draw_line((x + w, y + h), (x, y + h), col);
         self.draw_line((x, y + h), (x, y), col);
     }
-    fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
+    pub fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
@@ -257,7 +99,7 @@ impl Screen {
         }
     }
 
-    fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
+    pub fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
@@ -297,13 +139,14 @@ impl Screen {
         }
     }
 
-    fn draw(&mut self, x: u32, y: u32, col: Color) {
+    pub fn draw(&mut self, x: u32, y: u32, col: Color) {
         if x >= self.size.0 || y >= self.size.1 {
             return;
         }
+        self.updated = true;
         self.screen.set_pixel(x, y, col);
     }
-    fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: String) {
+    pub fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: String) {
         let mut sx = 0;
         let mut sy = 0;
         for chr in text.chars() {
@@ -316,7 +159,7 @@ impl Screen {
                 if scale > 1 {
                     for i in 0..8 {
                         for j in 0..8 {
-                            if self.textsheet.get_pixel(i + ox * 8, j + oy * 8).unwrap().r > 0 {
+                            if self.textsheet.get_pixel(i + ox * 8, j + oy * 8).r > 0 {
                                 for is in 0..=scale {
                                     for js in 0..=scale {
                                         self.draw(
@@ -332,7 +175,7 @@ impl Screen {
                 } else {
                     for i in 0..8 {
                         for j in 0..8 {
-                            if self.textsheet.get_pixel(i + ox * 8, j + oy * 8).unwrap().r > 0 {
+                            if self.textsheet.get_pixel(i + ox * 8, j + oy * 8).r > 0 {
                                 self.draw(x + sx + i, y + sy + j, col)
                             }
                         }
@@ -342,7 +185,7 @@ impl Screen {
             sx += 8 * scale;
         }
     }
-    fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: Color) {
+    pub fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: Color) {
         let (p1, p2) = if p1.0 < p2.0 { (p1, p2) } else { (p2, p1) };
         if p1.0 == p2.0 {
             let iter = if p1.1 < p2.1 {
@@ -383,11 +226,17 @@ impl Screen {
             }
         }
     }
-    fn clear(&mut self, col: Color) {
+    pub fn clear(&mut self, col: Color) {
         self.screen = Sprite::new_with_color(
             self.size.0, /* * self.size.2*/
             self.size.1, /* * self.size.2*/
             col,
         );
+    }
+    pub(crate) fn get_raw(&mut self) -> MemBlock {
+        self.screen.get_raw()
+    }
+    pub fn get_size(&mut self) -> (usize, usize) {
+        self.screen.get_raw().size()
     }
 }

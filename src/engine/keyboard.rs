@@ -10,7 +10,7 @@ pub struct Key {
 }
 impl Key {
     /// Return the key's text if it exist
-    pub fn get_str_option(&self) -> Option<String> {
+    pub fn get_str_option(self) -> Option<String> {
         if self.get_str() != "" {
             Some(self.get_str())
         } else {
@@ -18,7 +18,7 @@ impl Key {
         }
     }
     /// Return the key's text if it exist, return blank string if not
-    pub fn get_str(&self) -> String {
+    pub fn get_str(self) -> String {
         use Keycodes::*;
         (match self.key {
             A => "a",

@@ -1,8 +1,11 @@
-use crate::keyboard;
-use crate::keyboard::KeySet;
-use crate::ScreenHandle;
-use crate::{Events, GLHandle};
+use super::handler::{Events, GlHandler};
+use super::keyboard;
+use super::keyboard::KeySet;
+use super::screen::Screen;
 type GameLogic = &'static (dyn Fn(&mut Engine));
+
+// Force the `new_frame` to return false;
+const FORCE_STOP: bool = false;
 
 /**
  *  Bone of the Engine, join everything;
@@ -10,7 +13,6 @@ type GameLogic = &'static (dyn Fn(&mut Engine));
  *  ## Working window:
  *  ```
  *  use pixel_engine_gl as engine;
- *  fn main() {
  *      let mut game = engine::Engine::new(String::from("A window title"), (10,10,10),&game_logic);
  *      game.run();
  *  }
@@ -21,7 +23,6 @@ type GameLogic = &'static (dyn Fn(&mut Engine));
  *          // Your game code, run every frame
  *      }
  *      // Code run after everything
- *  }
  *  ```
  **/
 pub struct Engine {
@@ -42,9 +43,9 @@ pub struct Engine {
     /// Game's core, defining what the window will do
     pub main: GameLogic,
     /// Game's screen manager, let you draw on the screen
-    pub screen: ScreenHandle,
+    pub screen: Screen,
     //handler: GlHandler,
-    handle: GLHandle,
+    handler: GlHandler,
     k_pressed: std::collections::HashSet<keyboard::Key>,
     k_held: std::collections::HashSet<keyboard::Key>,
     k_released: std::collections::HashSet<keyboard::Key>,
@@ -58,11 +59,6 @@ impl std::fmt::Debug for Engine {
             .field("main", &"main function")
             .field("screen", &self.screen)
             .finish()
-    }
-}
-impl Drop for Engine {
-    fn drop(&mut self) {
-        self.stop();
     }
 }
 
@@ -81,8 +77,8 @@ impl Engine {
             elapsed: 0f64,
             /* BACKEND */
             main: func,
-            screen: ScreenHandle::spawn_thread((size.0, size.1)),
-            handle: GLHandle::new(size),
+            screen: Screen::new((size.0, size.1)),
+            handler: GlHandler::new(size),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
@@ -91,10 +87,6 @@ impl Engine {
     /// Run the engine;
     pub fn run(&mut self) {
         (self.main)(self);
-    }
-    fn stop(&mut self) {
-        self.handle.destroy();
-        self.screen.destroy();
     }
     /// Do all sort of things needed to update the engine. Will return a [bool] if the game
     /// needs to be shut down
@@ -111,7 +103,7 @@ impl Engine {
         self.frame_count += 1;
         if self.frame_timer > 1.0 {
             self.frame_timer -= 1.0;
-            self.handle
+            self.handler
                 .update_title(format!("{} - {}fps", self.title, self.frame_count));
             self.frame_count = 0;
         }
@@ -120,35 +112,30 @@ impl Engine {
         }
         self.k_pressed.clear();
         self.k_released.clear();
-
-        for event in self.handle.events() {
+        for event in self.handler.events() {
             match event {
                 Events::Keyboard { inp } => {
                     if let Some(k) = inp.virtual_keycode {
                         if inp.state == glutin::ElementState::Released {
-                            self.k_pressed
-                                .remove(&(keyboard::Key::from(inp.clone())).clone());
-                            self.k_held
-                                .remove(&(keyboard::Key::from(inp.clone())).clone());
-                            self.k_released
-                                .insert((keyboard::Key::from(inp.clone())).clone());
-                        } else {
-                            if !self.k_held.has(k) {
-                                self.k_pressed
-                                    .insert((keyboard::Key::from(inp.clone())).clone());
-                            }
+                            self.k_pressed.remove(&(keyboard::Key::from(inp)));
+                            self.k_held.remove(&(keyboard::Key::from(inp)));
+                            self.k_released.insert(keyboard::Key::from(inp));
+                        } else if !self.k_held.has(k) {
+                            self.k_pressed.insert(keyboard::Key::from(inp));
                         }
                     }
+                }
+                Events::Close => {
+                    return false;
                 }
             }
         }
 
         /* FRAME UPDATING */
+        self.handler.update_frame(self.screen.get_raw());
 
-        if self.screen.updated {
-            if let Some(img) = self.screen.get_image() {
-                self.handle.update_frame(img);
-            }
+        if FORCE_STOP {
+            return false;
         }
         true
     }

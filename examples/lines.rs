@@ -5,7 +5,7 @@ fn main() {
     game.run();
 }
 fn game_logic(game: &mut engine::Engine) {
-    let running = true;
+    let mut running = true;
     let mut start = vec![0, 0];
     let mut end = vec![5u32, 5u32];
     let mut toggle = false;

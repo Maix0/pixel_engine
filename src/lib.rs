@@ -6,7 +6,8 @@ extern crate gfx;
 extern crate gfx_device_gl;
 extern crate gfx_window_glutin;
 extern crate glutin;
-#[deny(
+extern crate memblock;
+/*#[deny(
     missing_docs,
     missing_debug_implementations,
     missing_copy_implementations,
@@ -16,7 +17,7 @@ extern crate glutin;
     unstable_features,
     unused_import_braces,
     unused_qualifications
-)]
+)]*/
 /*
 pub mod graphics;
 pub mod handler;

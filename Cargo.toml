@@ -12,6 +12,11 @@ gfx_window_glutin = "*"
 glutin ="*"
 image ="*"
 gfx_device_gl ="*"
+memblock = {path="../memblock"}
 
 [dev-dependencies]
 rand= "*"
+
+[profile.release]
+debug = true
+
