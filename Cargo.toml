@@ -16,6 +16,7 @@ memblock = {path="../memblock"}
 
 [dev-dependencies]
 rand= "*"
+pxengine_ext_test = {path= "../pxengine_ext_test"}
 
 [profile.release]
 debug = true
