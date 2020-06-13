@@ -1,30 +1,25 @@
-use memblock::*;
 /// Represent a Sprite
 #[derive(Debug, Clone)]
 pub struct Sprite {
     //raw: image::RgbaImage,
-    raw: MemBlock,
-    width: u32,
-    height: u32,
+    raw: Box<[u8]>,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Sprite {
-    fn image_to_memblock(img: image::RgbaImage) -> MemBlock {
-        let mut memblock = MemBlock::new((img.width() as usize, img.height() as usize));
-        let mut _a: &mut [u8] = &mut memblock;
-        _a = &mut img.into_raw();
-        memblock
+    fn image_to_boxedslice(img: image::RgbaImage) -> Box<[u8]> {
+        img.into_raw().into_boxed_slice()
     }
 
     ///Load a image file and return a Sprite object representing that image
     pub fn load_from_file(path: &std::path::Path) -> Result<Sprite, String> {
         let img = image::open(path).map_err(|err| err.to_string())?.to_rgba();
-        //println!("{:?}", img.pixels().nth(((&img).width() / 2) as usize));
 
         Ok(Sprite {
             width: (&img).width(),
             height: (&img).height(),
-            raw: Self::image_to_memblock(img),
+            raw: Self::image_to_boxedslice(img),
         })
     }
     /// Create [Sprite] with a size of 1x1
@@ -32,16 +27,17 @@ impl Sprite {
         Sprite {
             width: 1,
             height: 1,
-            raw: MemBlock::new((1, 1)),
+            raw: vec![0x00; 4].into_boxed_slice(),
         }
     }
     /// Create [Sprite] with given size and [Color]
     pub fn new_with_color(w: u32, h: u32, col: Color) -> Self {
-        let memblock = MemBlock::new_with_value((w as usize, h as usize), col.into());
         Sprite {
             width: w,
             height: h,
-            raw: memblock,
+            raw: vec![col.r, col.g, col.b, col.a]
+                .repeat(w as usize * h as usize)
+                .into_boxed_slice(),
             //image::ImageBuffer::from_raw(w, h, raw) /*; (w * h) as usize]) */
             //.unwrap(), // as image::RgbaImage,
         }
@@ -51,19 +47,30 @@ impl Sprite {
         Sprite {
             width: w,
             height: h,
-            raw: MemBlock::new((w as usize, h as usize)),
+            raw: vec![0x00; w as usize * h as usize * 4].into_boxed_slice(),
         }
     }
     /// Set pixel's [Color] on a [Sprite]
     pub fn set_pixel(&mut self, x: u32, y: u32, col: Color) {
-        self.raw.write((x as usize, y as usize), col.into());
+        if y >= self.height || x >= self.width {
+            return;
+        }
+        self.raw[(y * self.width + x) as usize * 4 + 0] = col.r;
+        self.raw[(y * self.width + x) as usize * 4 + 1] = col.g;
+        self.raw[(y * self.width + x) as usize * 4 + 2] = col.b;
+        self.raw[(y * self.width + x) as usize * 4 + 3] = col.a;
     }
     /// Return the [Color] of the pixel at given coordinates, if it exist
     pub fn get_pixel(&self, x: u32, y: u32) -> Color {
+        let mut col = Color::BLANK;
         if x >= self.width || y >= self.height {
-            return Color::new_with_alpha(0, 0, 0, 0);
+            return col;
         }
-        self.raw.read((x as usize, y as usize)).into()
+        col.r = self.raw[(y * self.width + x) as usize * 4 + 0];
+        col.g = self.raw[(y * self.width + x) as usize * 4 + 1];
+        col.b = self.raw[(y * self.width + x) as usize * 4 + 2];
+        col.a = self.raw[(y * self.width + x) as usize * 4 + 3];
+        col
     }
     /// Return the [Color] of the pixel at given sample
     /// It needs to be between 0.0 and 1.0 (both included)
@@ -73,10 +80,11 @@ impl Sprite {
         }
         let sample_x = ((x * (self.width) as f64) as u32).min(self.width - 1);
         let sample_y = ((y * (self.height) as f64) as u32).min(self.height - 1);
-        self.raw.read((sample_x as usize, sample_y as usize)).into()
+        self.get_pixel(sample_x, sample_y)
     }
+
     /// Return the raw Image of the sprite
-    pub fn get_raw(&self) -> MemBlock {
+    pub fn get_raw(&self) -> Box<[u8]> {
         self.raw.clone()
     }
 }
@@ -102,53 +110,53 @@ impl Color {
     pub const fn new_with_alpha(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
-    /// Const [Color]
+    /// White [Color]
     pub const WHITE: Color = Color::new(255, 255, 255);
-    /// Const [Color]
+    /// Gray [Color]
     pub const GREY: Color = Color::new(192, 192, 192);
-    /// Const [Color]
+    /// Dark Grey [Color]
     pub const DARK_GREY: Color = Color::new(128, 128, 128);
-    /// Const [Color]
+    /// Very Dark Grey [Color]
     pub const VERY_DARK_GREY: Color = Color::new(64, 64, 64);
-    /// Const [Color]
+    /// Red [Color]
     pub const RED: Color = Color::new(255, 0, 0);
-    /// Const [Color]
+    /// Dark Red [Color]
     pub const DARK_RED: Color = Color::new(128, 0, 0);
-    /// Const [Color]
+    /// Very Dark Red [Color]
     pub const VERY_DARK_RED: Color = Color::new(64, 0, 0);
-    /// Const [Color]
+    /// Yellow [Color]
     pub const YELLOW: Color = Color::new(255, 255, 0);
-    /// Const [Color]
+    /// Dark Yellow [Color]
     pub const DARK_YELLOW: Color = Color::new(128, 128, 0);
-    /// Const [Color]
+    /// Very Dark Yellow [Color]
     pub const VERY_DARK_YELLOW: Color = Color::new(64, 64, 0);
-    /// Const [Color]
+    /// Green [Color]
     pub const GREEN: Color = Color::new(0, 255, 0);
-    /// Const [Color]
+    /// Dark Green [Color]
     pub const DARK_GREEN: Color = Color::new(0, 128, 0);
-    /// Const [Color]
+    /// Very Dark Green [Color]
     pub const VERY_DARK_GREEN: Color = Color::new(0, 64, 0);
-    /// Const [Color]
+    /// Cyan [Color]
     pub const CYAN: Color = Color::new(0, 255, 255);
-    /// Const [Color]
+    /// Dark Cyan [Color]
     pub const DARK_CYAN: Color = Color::new(0, 128, 128);
-    /// Const [Color]
+    /// Very Dark Cyan [Color]
     pub const VERY_DARK_CYAN: Color = Color::new(0, 64, 64);
-    /// Const [Color]
+    /// Blue [Color]
     pub const BLUE: Color = Color::new(0, 0, 255);
-    /// Const [Color]
+    /// Dark Blue [Color]
     pub const DARK_BLUE: Color = Color::new(0, 0, 128);
-    /// Const [Color]
+    /// Very Dark Blue [Color]
     pub const VERY_DARK_BLUE: Color = Color::new(0, 0, 64);
-    /// Const [Color]
+    /// Magenta [Color]
     pub const MAGENTA: Color = Color::new(255, 0, 255);
-    /// Const [Color]
+    /// Dark Magenta [Color]
     pub const DARK_MAGENTA: Color = Color::new(128, 0, 128);
-    /// Const [Color]
+    /// Very Dark Magenta [Color]
     pub const VERY_DARK_MAGENTA: Color = Color::new(64, 0, 64);
-    /// Const [Color]
+    /// Black [Color]
     pub const BLACK: Color = Color::new(0, 0, 0);
-    /// Const [Color]
+    /// Blank [Color]
     pub const BLANK: Color = Color::new_with_alpha(0, 0, 0, 0);
 }
 

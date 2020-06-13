@@ -1,6 +1,5 @@
 use super::graphics::{Color, Sprite};
-use memblock::MemBlock;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Screen {
     pub(crate) screen: Sprite,
     pub(crate) size: (u32, u32),
@@ -217,10 +216,10 @@ impl Screen {
             col,
         );
     }
-    pub(crate) fn get_raw(&mut self) -> MemBlock {
+    pub(crate) fn get_raw(&mut self) -> Box<[u8]> {
         self.screen.get_raw()
     }
     pub fn get_size(&mut self) -> (usize, usize) {
-        self.screen.get_raw().size()
+        (self.screen.width as usize, self.screen.height as usize)
     }
 }

@@ -12,11 +12,11 @@ gfx_window_glutin = "*"
 glutin ="*"
 image ="*"
 gfx_device_gl ="*"
-memblock = {path="../memblock"}
+parking_lot = "0.10.2"
 
 [dev-dependencies]
 rand= "*"
-pxengine_ext_test = {path= "../pxengine_ext_test"}
+#pxengine_ext_test = {path= "../pxengine_ext_test"}
 
 [profile.release]
 debug = true

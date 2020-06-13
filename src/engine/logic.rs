@@ -2,10 +2,14 @@ use super::handler::{Events, GlHandler};
 use super::keyboard;
 use super::keyboard::KeySet;
 use super::screen::Screen;
-type GameLogic = &'static (dyn Fn(&mut Engine));
+use parking_lot::Mutex;
+use std::sync::Arc;
+type GameLogic<'game> = &'game mut (dyn FnMut(&mut Engine) -> Result<bool, String>);
+
+// Just used for the blocking of the rendering (no frame jump)
+pub(crate) struct RenderBarrier;
 
 // Force the `new_frame` to return false;
-const FORCE_STOP: bool = false;
 
 /**
  *  Bone of the Engine, join everything;
@@ -40,15 +44,14 @@ pub struct Engine {
     frame_timer: f64,
 
     /* BACKEND */
-    /// Game's core, defining what the window will do
-    pub main: GameLogic,
     /// Game's screen manager, let you draw on the screen
     pub screen: Screen,
-    //handler: GlHandler,
+    screen_mutex: Arc<Mutex<Screen>>,
     handler: GlHandler,
     k_pressed: std::collections::HashSet<keyboard::Key>,
     k_held: std::collections::HashSet<keyboard::Key>,
     k_released: std::collections::HashSet<keyboard::Key>,
+    blocking: std::sync::mpsc::SyncSender<RenderBarrier>,
 }
 impl std::fmt::Debug for Engine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -56,7 +59,6 @@ impl std::fmt::Debug for Engine {
             .field("title", &self.title)
             .field("size", &self.size)
             .field("elapsed", &self.elapsed)
-            .field("main", &"main function")
             .field("screen", &self.screen)
             .finish()
     }
@@ -64,7 +66,9 @@ impl std::fmt::Debug for Engine {
 
 impl Engine {
     /// Create a new [Engine]
-    pub fn new(title: String, size: (u32, u32, u32), func: GameLogic) -> Self {
+    pub fn new(title: String, size: (u32, u32, u32)) -> Self {
+        let (blocking, unblocking) = std::sync::mpsc::sync_channel(0);
+        let screen_mutex = Arc::new(Mutex::new(Screen::new((size.0, size.1))));
         Engine {
             /* FRONTEND */
             size,
@@ -76,69 +80,71 @@ impl Engine {
             frame_timer: 0f64,
             elapsed: 0f64,
             /* BACKEND */
-            main: func,
             screen: Screen::new((size.0, size.1)),
-            handler: GlHandler::new(size),
+            handler: GlHandler::new(size, unblocking, screen_mutex.clone()),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
+            screen_mutex,
+            blocking,
         }
     }
     /// Run the engine;
-    pub fn run(&mut self) {
-        (self.main)(self);
-    }
-    /// Do all sort of things needed to update the engine. Will return a [bool] if the game
-    /// needs to be shut down
-    pub fn new_frame(&mut self) -> bool {
-        /* FRAME STUFF */
-        self.elapsed = (std::time::SystemTime::now()
-            .duration_since(self.timer)
-            .map_err(|err| err.to_string())
-            .unwrap())
-        .as_secs_f64();
-        // End
-        self.timer = std::time::SystemTime::now();
-        self.frame_timer += self.elapsed;
-        self.frame_count += 1;
-        if self.frame_timer > 1.0 {
-            self.frame_timer -= 1.0;
-            self.handler
-                .update_title(format!("{} - {}fps", self.title, self.frame_count));
-            self.frame_count = 0;
-        }
-        for key in &self.k_pressed {
-            self.k_held.insert(*key);
-        }
-        self.k_pressed.clear();
-        self.k_released.clear();
-        for event in self.handler.events() {
-            match event {
-                Events::Keyboard { inp } => {
-                    if let Some(k) = inp.virtual_keycode {
-                        if inp.state == glutin::ElementState::Released {
-                            self.k_pressed.remove(&(keyboard::Key::from(inp)));
-                            self.k_held.remove(&(keyboard::Key::from(inp)));
-                            self.k_released.insert(keyboard::Key::from(inp));
-                        } else if !self.k_held.has(k) {
-                            self.k_pressed.insert(keyboard::Key::from(inp));
+    pub fn run<'game>(&mut self, main_func: GameLogic<'game>) {
+        let mut force_exit = false;
+        'mainloop: loop {
+            self.elapsed = (std::time::SystemTime::now()
+                .duration_since(self.timer)
+                .map_err(|err| err.to_string())
+                .unwrap())
+            .as_secs_f64();
+            // End
+            self.timer = std::time::SystemTime::now();
+            self.frame_timer += self.elapsed;
+            self.frame_count += 1;
+            if self.frame_timer > 1.0 {
+                self.frame_timer -= 1.0;
+                self.handler
+                    .update_title(format!("{} - {}fps", self.title, self.frame_count));
+                self.frame_count = 0;
+            }
+            for key in &self.k_pressed {
+                self.k_held.insert(*key);
+            }
+            self.k_pressed.clear();
+            self.k_released.clear();
+            for event in self.handler.events() {
+                match event {
+                    Events::Keyboard { inp } => {
+                        if let Some(k) = inp.virtual_keycode {
+                            if inp.state == glutin::ElementState::Released {
+                                self.k_pressed.remove(&(keyboard::Key::from(inp)));
+                                self.k_held.remove(&(keyboard::Key::from(inp)));
+                                self.k_released.insert(keyboard::Key::from(inp));
+                            } else if !self.k_held.has(k) {
+                                self.k_pressed.insert(keyboard::Key::from(inp));
+                            }
                         }
                     }
-                }
-                Events::Close => {
-                    return false;
+                    Events::Close => {
+                        force_exit = false;
+                    }
                 }
             }
+            let r = (main_func)(self);
+            if r == Ok(false) || r.is_err() || force_exit == true {
+                break 'mainloop;
+            }
+            self.update_frame();
         }
-
-        /* FRAME UPDATING */
-        self.handler.update_frame(self.screen.get_raw());
-
-        if FORCE_STOP {
-            return false;
-        }
-        true
     }
+    fn update_frame(&mut self) {
+        let mut lock = self.screen_mutex.lock();
+        lock.clone_from(&self.screen);
+        std::mem::drop(lock);
+        self.blocking.send(RenderBarrier).unwrap();
+    }
+
     /// Know if key is pressed
     pub fn is_pressed(&self, keycode: keyboard::Keycodes) -> bool {
         self.k_pressed.has(keycode)
