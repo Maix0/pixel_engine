@@ -2,11 +2,10 @@ extern crate pixel_engine_gl as engine;
 
 fn main() {
     let mut game = engine::Engine::new("Text".to_owned(), (25, 25, 20));
-    let mut running = true;
     let mut start = vec![0, 0];
     let mut end = vec![5u32, 5u32];
     let mut toggle = false;
-    game.run(&mut |game| {
+    game.run(&mut |game: &mut engine::Engine| {
         game.screen.clear([0, 0, 0].into());
         use engine::keyboard::Keycodes::{Down, Left, Right, Space, Up};
         // END POINT CONTROL

@@ -4,7 +4,7 @@ use super::keyboard::KeySet;
 use super::screen::Screen;
 use parking_lot::Mutex;
 use std::sync::Arc;
-type GameLogic<'game> = &'game mut (dyn FnMut(&mut Engine) -> Result<bool, String>);
+//type GameLogic<'game> = &'game mut (dyn FnMut(&mut Engine) -> Result<bool, String>);
 
 // Just used for the blocking of the rendering (no frame jump)
 pub(crate) struct RenderBarrier;
@@ -89,8 +89,8 @@ impl Engine {
             blocking,
         }
     }
-    /// Run the engine;
-    pub fn run<'game>(&mut self, main_func: GameLogic<'game>) {
+    /// Run the engine with given function;
+    pub fn run(&mut self, mut main_func: impl FnMut(&mut Engine) -> Result<bool, String>) {
         let mut force_exit = false;
         'mainloop: loop {
             self.elapsed = (std::time::SystemTime::now()
@@ -127,7 +127,7 @@ impl Engine {
                         }
                     }
                     Events::Close => {
-                        force_exit = false;
+                        force_exit = true;
                     }
                 }
             }

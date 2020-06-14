@@ -52,6 +52,11 @@ impl Screen {
         self.draw_line((x + w, y + h), (x, y + h), col);
         self.draw_line((x, y + h), (x, y), col);
     }
+    pub fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
+        for nx in x..=(x + w) {
+            self.draw_line((nx, y), (nx, y + h), col);
+        }
+    }
     pub fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
         let x = x as i32;
         let y = y as i32;

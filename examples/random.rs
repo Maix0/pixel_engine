@@ -6,7 +6,7 @@ fn main() -> Result<(), String> {
     let mut game = engine::Engine::new("Random".to_owned(), (256, 240, 2));
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    game.run(&mut |game| {
+    game.run(|game: &mut engine::Engine| {
         if game.get_key(Escape).is_some() {
             return Ok(false);
         }

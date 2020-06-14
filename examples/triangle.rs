@@ -1,14 +1,7 @@
 //extern crate pixel_engine_gl as engine;
 use pixel_engine_gl as engine;
 fn main() -> Result<(), String> {
-    let mut engine = engine::Engine::new("Triangle".to_string(), (50, 50, 10), &game_logic);
-    engine.run();
-    engine.stop();
-    Ok(())
-}
-
-fn game_logic(game: &mut engine::Engine) /*-> Result<(), String> */
-{
+    let mut game = engine::Engine::new("Triangle".to_string(), (500, 500, 1));
     fn dist(p1: (i32, i32), p2: (i32, i32)) -> f64 {
         return (((p2.0 - p1.0).pow(2) + (p2.1 - p1.1).pow(2)) as f64).sqrt();
     };
@@ -47,7 +40,6 @@ fn game_logic(game: &mut engine::Engine) /*-> Result<(), String> */
             (red.1 - blue.1) * blue.0 + (blue.0 - red.0) * blue.1,
         ),
     );
-    println!("Done calculations");
     for x in 0..(game.size.0) {
         for y in 0..(game.size.1) {
             if (lines.0).0 * x as i32 + (lines.0).1 * y as i32 >= (lines.0).2
@@ -70,6 +62,6 @@ fn game_logic(game: &mut engine::Engine) /*-> Result<(), String> */
             }
         }
     }
-    println!("mainloop");
-    while game.new_frame() {}
+    game.run(|_| Ok(true));
+    Ok(())
 }
