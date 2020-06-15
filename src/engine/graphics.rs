@@ -1,20 +1,25 @@
-#[derive(Debug, Clone)]
 /// Represent a Sprite
+#[derive(Debug, Clone)]
 pub struct Sprite {
-    raw: image::RgbaImage,
-    width: u32,
-    height: u32,
+    //raw: image::RgbaImage,
+    raw: Box<[u8]>,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Sprite {
+    fn image_to_boxedslice(img: image::RgbaImage) -> Box<[u8]> {
+        img.into_raw().into_boxed_slice()
+    }
+
     ///Load a image file and return a Sprite object representing that image
     pub fn load_from_file(path: &std::path::Path) -> Result<Sprite, String> {
         let img = image::open(path).map_err(|err| err.to_string())?.to_rgba();
-        //println!("{:?}", img.pixels().nth(((&img).width() / 2) as usize));
+
         Ok(Sprite {
             width: (&img).width(),
             height: (&img).height(),
-            raw: img,
+            raw: Self::image_to_boxedslice(img),
         })
     }
     /// Create [Sprite] with a size of 1x1
@@ -22,23 +27,19 @@ impl Sprite {
         Sprite {
             width: 1,
             height: 1,
-            raw: image::ImageBuffer::from_raw(1, 1, vec![0_u8; 4]).unwrap(), //as image::RgbaImage,
+            raw: vec![0x00; 4].into_boxed_slice(),
         }
     }
     /// Create [Sprite] with given size and [Color]
     pub fn new_with_color(w: u32, h: u32, col: Color) -> Self {
-        let mut raw = vec![0; (w * h * 4) as usize];
-        for index in (0..(w * h * 4)).step_by(4) {
-            raw[(index + 0) as usize] = col.r;
-            raw[(index + 1) as usize] = col.g;
-            raw[(index + 2) as usize] = col.b;
-            raw[(index + 3) as usize] = col.a;
-        }
         Sprite {
             width: w,
             height: h,
-            raw: image::ImageBuffer::from_raw(w, h, raw) /*; (w * h) as usize]) */
-                .unwrap(), // as image::RgbaImage,
+            raw: vec![col.r, col.g, col.b, col.a]
+                .repeat(w as usize * h as usize)
+                .into_boxed_slice(),
+            //image::ImageBuffer::from_raw(w, h, raw) /*; (w * h) as usize]) */
+            //.unwrap(), // as image::RgbaImage,
         }
     }
     /// Create a blank [Sprite] with given size
@@ -46,25 +47,30 @@ impl Sprite {
         Sprite {
             width: w,
             height: h,
-            raw: image::ImageBuffer::from_raw(w, h, vec![0_u8; (w * h * 4) as usize]).unwrap(), //as image::RgbaImage,
+            raw: vec![0x00; w as usize * h as usize * 4].into_boxed_slice(),
         }
     }
     /// Set pixel's [Color] on a [Sprite]
     pub fn set_pixel(&mut self, x: u32, y: u32, col: Color) {
-        self.raw.get_pixel_mut(x, y).0 = [col.r, col.g, col.b, col.a];
-    }
-    fn ptc(px: Option<&image::Rgba<u8>>) -> Option<Color> {
-        match px {
-            Some(px) => Some(Color::new_with_alpha(px[0], px[1], px[2], px[3])),
-            None => None,
+        if y >= self.height || x >= self.width {
+            return;
         }
+        self.raw[(y * self.width + x) as usize * 4 + 0] = col.r;
+        self.raw[(y * self.width + x) as usize * 4 + 1] = col.g;
+        self.raw[(y * self.width + x) as usize * 4 + 2] = col.b;
+        self.raw[(y * self.width + x) as usize * 4 + 3] = col.a;
     }
     /// Return the [Color] of the pixel at given coordinates, if it exist
-    pub fn get_pixel(&self, x: u32, y: u32) -> Option<Color> {
+    pub fn get_pixel(&self, x: u32, y: u32) -> Color {
+        let mut col = Color::BLANK;
         if x >= self.width || y >= self.height {
-            return Some(Color::new_with_alpha(0, 0, 0, 0));
+            return col;
         }
-        Sprite::ptc(Some(self.raw.get_pixel(x, y)))
+        col.r = self.raw[(y * self.width + x) as usize * 4 + 0];
+        col.g = self.raw[(y * self.width + x) as usize * 4 + 1];
+        col.b = self.raw[(y * self.width + x) as usize * 4 + 2];
+        col.a = self.raw[(y * self.width + x) as usize * 4 + 3];
+        col
     }
     /// Return the [Color] of the pixel at given sample
     /// It needs to be between 0.0 and 1.0 (both included)
@@ -74,10 +80,11 @@ impl Sprite {
         }
         let sample_x = ((x * (self.width) as f64) as u32).min(self.width - 1);
         let sample_y = ((y * (self.height) as f64) as u32).min(self.height - 1);
-        Sprite::ptc(Some(self.raw.get_pixel(sample_x, sample_y))).unwrap()
+        self.get_pixel(sample_x, sample_y)
     }
+
     /// Return the raw Image of the sprite
-    pub fn get_raw(&self) -> image::RgbaImage {
+    pub fn get_raw(&self) -> Box<[u8]> {
         self.raw.clone()
     }
 }
@@ -103,53 +110,53 @@ impl Color {
     pub const fn new_with_alpha(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
-    /// Const [Color]
+    /// White [Color]
     pub const WHITE: Color = Color::new(255, 255, 255);
-    /// Const [Color]
+    /// Gray [Color]
     pub const GREY: Color = Color::new(192, 192, 192);
-    /// Const [Color]
+    /// Dark Grey [Color]
     pub const DARK_GREY: Color = Color::new(128, 128, 128);
-    /// Const [Color]
+    /// Very Dark Grey [Color]
     pub const VERY_DARK_GREY: Color = Color::new(64, 64, 64);
-    /// Const [Color]
+    /// Red [Color]
     pub const RED: Color = Color::new(255, 0, 0);
-    /// Const [Color]
+    /// Dark Red [Color]
     pub const DARK_RED: Color = Color::new(128, 0, 0);
-    /// Const [Color]
+    /// Very Dark Red [Color]
     pub const VERY_DARK_RED: Color = Color::new(64, 0, 0);
-    /// Const [Color]
+    /// Yellow [Color]
     pub const YELLOW: Color = Color::new(255, 255, 0);
-    /// Const [Color]
+    /// Dark Yellow [Color]
     pub const DARK_YELLOW: Color = Color::new(128, 128, 0);
-    /// Const [Color]
+    /// Very Dark Yellow [Color]
     pub const VERY_DARK_YELLOW: Color = Color::new(64, 64, 0);
-    /// Const [Color]
+    /// Green [Color]
     pub const GREEN: Color = Color::new(0, 255, 0);
-    /// Const [Color]
+    /// Dark Green [Color]
     pub const DARK_GREEN: Color = Color::new(0, 128, 0);
-    /// Const [Color]
+    /// Very Dark Green [Color]
     pub const VERY_DARK_GREEN: Color = Color::new(0, 64, 0);
-    /// Const [Color]
+    /// Cyan [Color]
     pub const CYAN: Color = Color::new(0, 255, 255);
-    /// Const [Color]
+    /// Dark Cyan [Color]
     pub const DARK_CYAN: Color = Color::new(0, 128, 128);
-    /// Const [Color]
+    /// Very Dark Cyan [Color]
     pub const VERY_DARK_CYAN: Color = Color::new(0, 64, 64);
-    /// Const [Color]
+    /// Blue [Color]
     pub const BLUE: Color = Color::new(0, 0, 255);
-    /// Const [Color]
+    /// Dark Blue [Color]
     pub const DARK_BLUE: Color = Color::new(0, 0, 128);
-    /// Const [Color]
+    /// Very Dark Blue [Color]
     pub const VERY_DARK_BLUE: Color = Color::new(0, 0, 64);
-    /// Const [Color]
+    /// Magenta [Color]
     pub const MAGENTA: Color = Color::new(255, 0, 255);
-    /// Const [Color]
+    /// Dark Magenta [Color]
     pub const DARK_MAGENTA: Color = Color::new(128, 0, 128);
-    /// Const [Color]
+    /// Very Dark Magenta [Color]
     pub const VERY_DARK_MAGENTA: Color = Color::new(64, 0, 64);
-    /// Const [Color]
+    /// Black [Color]
     pub const BLACK: Color = Color::new(0, 0, 0);
-    /// Const [Color]
+    /// Blank [Color]
     pub const BLANK: Color = Color::new_with_alpha(0, 0, 0, 0);
 }
 
@@ -203,6 +210,18 @@ impl From<[u8; 3]> for Color {
     }
 }
 
+impl From<u32> for Color {
+    fn from(col: u32) -> Self {
+        u32_to_slice(col).into()
+    }
+}
+
+impl From<Color> for u32 {
+    fn from(col: Color) -> Self {
+        slice_to_u32(col.into())
+    }
+}
+
 impl From<Color> for [u8; 4] {
     fn from(col: Color) -> Self {
         [col.r, col.g, col.b, col.a]
@@ -252,4 +271,12 @@ impl From<Color> for [f32; 3] {
             col.b as f32 / 255f32,
         ]
     }
+}
+
+fn u32_to_slice(n: u32) -> [u8; 4] {
+    [(n >> 24) as u8, (n >> 16) as u8, (n >> 8) as u8, n as u8]
+}
+
+fn slice_to_u32(n: [u8; 4]) -> u32 {
+    (n[0] as u32) << 24 | (n[1] as u32) << 16 | (n[2] as u32) << 8 | (n[3] as u32)
 }

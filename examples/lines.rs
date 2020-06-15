@@ -1,15 +1,11 @@
 extern crate pixel_engine_gl as engine;
-
+use engine::traits::*;
 fn main() {
-    let mut game = engine::Engine::new("Text".to_owned(), (25, 25, 20), &game_logic);
-    game.run();
-}
-fn game_logic(game: &mut engine::Engine) {
-    let running = true;
+    let mut game = engine::Engine::new("Text".to_owned(), (25, 25, 20));
     let mut start = vec![0, 0];
     let mut end = vec![5u32, 5u32];
     let mut toggle = false;
-    while game.new_frame() && running {
+    game.run(&mut |game: &mut engine::Engine| {
         game.screen.clear([0, 0, 0].into());
         use engine::keyboard::Keycodes::{Down, Left, Right, Space, Up};
         // END POINT CONTROL
@@ -54,5 +50,6 @@ fn game_logic(game: &mut engine::Engine) {
             .draw(start[0] as u32, start[1] as u32, [0, 255, 0].into());
         game.screen
             .draw(end[0] as u32, end[1] as u32, [255, 0, 0].into());
-    }
+        Ok(true)
+    });
 }

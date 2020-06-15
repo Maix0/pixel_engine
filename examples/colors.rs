@@ -1,12 +1,8 @@
 extern crate pixel_engine_gl as engine;
+use engine::traits::*;
 
-fn main() -> Result<(), String> {
-    let mut game = engine::logic::Engine::new("Colors".to_owned(), (500, 500, 1), &game_logic);
-    game.run()?;
-    Ok(())
-}
-fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
-    let running = true;
+fn main() {
+    let mut game = engine::Engine::new("Colors".to_owned(), (500, 500, 1));
     for x in 0..game.size.0 {
         for y in 0..game.size.1 {
             let red: f32 = if x < (game.size.0 - 1) / 2 {
@@ -25,6 +21,5 @@ fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
             game.screen.draw(x, y, [red, green, blue].into());
         }
     }
-    while game.new_frame() && running {}
-    Ok(())
+    game.run(|_| Ok(true));
 }

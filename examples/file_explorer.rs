@@ -1,11 +1,62 @@
 extern crate pixel_engine_gl as engine;
-
-fn main() -> Result<(), String> {
-    let mut game = engine::logic::Engine::new("Text".to_owned(), (500, 500, 1), &game_logic);
-    game.run()?;
-    Ok(())
+use engine::traits::*;
+fn main() {
+    let mut game = engine::Engine::new("Path".to_owned(), (500, 500, 1));
+    let mut pw = PathView::new(PathBuf::from("."));
+    use engine::keyboard::Keycodes::{Down, Escape, Left, Right, Up};
+    game.run(|game: &mut engine::Engine| {
+        game.screen.clear([0x00, 0x00, 0x00].into());
+        if game.is_pressed(Escape) {
+            return Ok(false);
+        }
+        if game.is_pressed(Up) {
+            pw.select_prev();
+        }
+        if game.is_pressed(Down) {
+            pw.select_next();
+        }
+        if game.is_pressed(Left) {
+            pw.goto_parent();
+        }
+        if game.is_pressed(Right) {
+            pw.goto_select();
+        }
+        let current_filename = match pw.current_path.file_name() {
+            Some(filename) => filename.to_str().unwrap().to_string(),
+            None => String::from("."),
+        };
+        game.screen
+            .draw_text(0, 0, 2, [1.0, 1.0, 1.0].into(), current_filename);
+        for i in 0..pw.child.len() {
+            if i == pw.child_index {
+                //game.screen.draw_line()
+                game.screen.draw_text(
+                    200,
+                    20 * i as u32,
+                    2,
+                    [0.0, 1.0, 1.0].into(),
+                    match &pw.get_child_name()[i] {
+                        Some(name) => name.to_string(),
+                        None => String::from(""),
+                    },
+                );
+            } else {
+                game.screen.draw_text(
+                    200,
+                    20 * i as u32,
+                    2,
+                    [1.0, 1.0, 1.0].into(),
+                    match &pw.get_child_name()[i] {
+                        Some(name) => name.to_string(),
+                        None => String::from(""),
+                    },
+                );
+            }
+        }
+        Ok(true)
+    });
 }
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 struct PathView {
     current_path: PathBuf,
@@ -84,61 +135,4 @@ impl PathView {
             self.child_index = 0;
         }
     }
-}
-
-fn game_logic(game: &mut engine::logic::Engine) -> Result<(), String> {
-    let mut running = true;
-    let mut pw = PathView::new(PathBuf::from("."));
-    use engine::keyboard::Keycodes::{Down, Escape, Left, Right, Up};
-    while game.new_frame() && running {
-        game.screen.clear([0x00, 0x00, 0x00].into());
-        if game.is_pressed(Escape) {
-            running = false;
-        }
-        if game.is_pressed(Up) {
-            pw.select_prev();
-        }
-        if game.is_pressed(Down) {
-            pw.select_next();
-        }
-        if game.is_pressed(Left) {
-            pw.goto_parent();
-        }
-        if game.is_pressed(Right) {
-            pw.goto_select();
-        }
-        let current_filename = match pw.current_path.file_name() {
-            Some(filename) => filename.to_str().unwrap().to_string(),
-            None => String::from("."),
-        };
-        game.screen
-            .draw_text(0, 0, 2, [1.0, 1.0, 1.0].into(), current_filename);
-        for i in 0..pw.child.len() {
-            if i == pw.child_index {
-                //game.screen.draw_line()
-                game.screen.draw_text(
-                    200,
-                    20 * i as u32,
-                    2,
-                    [0.0, 1.0, 1.0].into(),
-                    match &pw.get_child_name()[i] {
-                        Some(name) => name.to_string(),
-                        None => String::from(""),
-                    },
-                );
-            } else {
-                game.screen.draw_text(
-                    200,
-                    20 * i as u32,
-                    2,
-                    [1.0, 1.0, 1.0].into(),
-                    match &pw.get_child_name()[i] {
-                        Some(name) => name.to_string(),
-                        None => String::from(""),
-                    },
-                );
-            }
-        }
-    }
-    Ok(())
 }
