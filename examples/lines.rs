@@ -1,5 +1,5 @@
 extern crate pixel_engine_gl as engine;
-
+use engine::traits::*;
 fn main() {
     let mut game = engine::Engine::new("Text".to_owned(), (25, 25, 20));
     let mut start = vec![0, 0];

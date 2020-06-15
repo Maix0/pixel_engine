@@ -1,6 +1,6 @@
 use super::graphics::{Color, Sprite};
 use super::logic::RenderBarrier;
-use super::screen::Screen;
+use super::screen::{Screen, ScreenTrait};
 use crate::gfx;
 use gfx::{traits::FactoryExt, Device};
 use glutin::{Event, WindowEvent};
@@ -148,7 +148,9 @@ impl GlHandler {
                 event_loop: events_loop,
             };
             loop {
-                gl.unblocking.recv().unwrap();
+                if gl.unblocking.recv().is_err() {
+                    return;
+                }
                 let mut lock = mutex.lock();
                 let mut event_lock = events.lock();
                 let name_lock = name.lock();

@@ -1,8 +1,9 @@
 extern crate pixel_engine_gl as engine;
 extern crate rand;
 
-use engine::keyboard::Keycodes::{Down, Escape, Left, Right, Space, Up};
-fn main() -> Result<(), String> {
+use engine::keyboard::Keycodes::Escape;
+use engine::traits::*;
+fn main() {
     let mut game = engine::Engine::new("Random".to_owned(), (256, 240, 2));
     use rand::Rng;
     let mut rng = rand::thread_rng();
@@ -18,5 +19,4 @@ fn main() -> Result<(), String> {
         }
         Ok(true)
     });
-    Ok(())
 }

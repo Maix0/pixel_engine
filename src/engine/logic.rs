@@ -90,7 +90,10 @@ impl Engine {
         }
     }
     /// Run the engine with given function;
-    pub fn run(&mut self, mut main_func: impl FnMut(&mut Engine) -> Result<bool, String>) {
+    pub fn run(
+        &mut self,
+        mut main_func: impl FnMut(&mut Engine) -> Result<bool, Box<dyn std::error::Error>>,
+    ) {
         let mut force_exit = false;
         'mainloop: loop {
             self.elapsed = (std::time::SystemTime::now()
@@ -132,7 +135,10 @@ impl Engine {
                 }
             }
             let r = (main_func)(self);
-            if r == Ok(false) || r.is_err() || force_exit == true {
+            if r.is_err() || r.as_ref().ok() == Some(&false) || force_exit == true {
+                if r.is_err() {
+                    println!("Game Stopped:\n{:?}", r.unwrap_err());
+                }
                 break 'mainloop;
             }
             self.update_frame();

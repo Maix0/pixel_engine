@@ -32,9 +32,6 @@ impl Screen {
         }
         sheet
     }
-}
-
-impl Screen {
     pub fn new(size: (u32, u32)) -> Screen {
         if size.0 == 0 || size.1 == 0 {
             panic!("Size elements can't be equal to 0")
@@ -46,95 +43,17 @@ impl Screen {
             updated: false,
         }
     }
-    pub fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
-        self.draw_line((x, y), (x + w, y), col);
-        self.draw_line((x + w, y), (x + w, y + h), col);
-        self.draw_line((x + w, y + h), (x, y + h), col);
-        self.draw_line((x, y + h), (x, y), col);
+    pub(crate) fn get_raw(&mut self) -> Box<[u8]> {
+        self.screen.get_raw()
     }
-    pub fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
-        for nx in x..=(x + w) {
-            self.draw_line((nx, y), (nx, y + h), col);
-        }
-    }
-    pub fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
-        let x = x as i32;
-        let y = y as i32;
-        let mut x0: i32 = 0;
-        let mut y0: i32 = r as i32;
-        let mut d: i32 = 3 - 2 * r as i32;
-        if r == 0 {
-            return;
-        }
-        while y0 >= x0 {
-            self.draw((x + x0) as u32, (y - y0) as u32, col);
-            self.draw((x + y0) as u32, (y - x0) as u32, col);
-            self.draw((x + y0) as u32, (y + x0) as u32, col);
-            self.draw((x + x0) as u32, (y + y0) as u32, col);
+}
 
-            self.draw((x - x0) as u32, (y + y0) as u32, col);
-            self.draw((x - y0) as u32, (y + x0) as u32, col);
-            self.draw((x - y0) as u32, (y - x0) as u32, col);
-            self.draw((x - x0) as u32, (y - y0) as u32, col);
-
-            x0 += 1;
-            if d < 0 {
-                d += 4 * x0 + 6;
-            } else {
-                y0 -= 1;
-                d += 4 * (x0 - y0) + 10;
-            }
-        }
-    }
-
-    pub fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
-        let x = x as i32;
-        let y = y as i32;
-        let mut x0: i32 = 0;
-        let mut y0: i32 = r as i32;
-        let mut d: i32 = 3 - 2 * r as i32;
-        if r == 0 {
-            return;
-        }
-        while y0 >= x0 {
-            self.draw_line(
-                ((x - x0) as u32, (y - y0) as u32),
-                ((x + x0) as u32, (y - y0) as u32),
-                col,
-            );
-            self.draw_line(
-                ((x - y0) as u32, (y - x0) as u32),
-                ((x + y0) as u32, (y - x0) as u32),
-                col,
-            );
-            self.draw_line(
-                ((x - x0) as u32, (y + y0) as u32),
-                ((x + x0) as u32, (y + y0) as u32),
-                col,
-            );
-            self.draw_line(
-                ((x - y0) as u32, (y + x0) as u32),
-                ((x + y0) as u32, (y + x0) as u32),
-                col,
-            );
-            x0 += 1;
-            if d < 0 {
-                d += 4 * x0 + 6;
-            } else {
-                y0 -= 1;
-                d += 4 * (x0 - y0) + 10;
-            }
-        }
-    }
-
-    pub fn draw(&mut self, x: u32, y: u32, col: Color) {
-        if x >= self.size.0 || y >= self.size.1 {
-            return;
-        }
-        self.updated = true;
-        self.screen.set_pixel(x, y, col);
-    }
-    pub fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: String) {
+pub trait ScreenTrait {
+    fn get_size(&mut self) -> (usize, usize);
+    fn get_textsheet(&self) -> &Sprite;
+    fn clear(&mut self, col: Color);
+    fn draw(&mut self, x: u32, y: u32, col: Color);
+    fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: String) {
         let mut sx = 0;
         let mut sy = 0;
         for chr in text.chars() {
@@ -147,7 +66,7 @@ impl Screen {
                 if scale > 1 {
                     for i in 0..8 {
                         for j in 0..8 {
-                            if self.textsheet.get_pixel(i + ox * 8, j + oy * 8).r > 0 {
+                            if self.get_textsheet().get_pixel(i + ox * 8, j + oy * 8).r > 0 {
                                 for is in 0..=scale {
                                     for js in 0..=scale {
                                         self.draw(
@@ -163,7 +82,7 @@ impl Screen {
                 } else {
                     for i in 0..8 {
                         for j in 0..8 {
-                            if self.textsheet.get_pixel(i + ox * 8, j + oy * 8).r > 0 {
+                            if self.get_textsheet().get_pixel(i + ox * 8, j + oy * 8).r > 0 {
                                 self.draw(x + sx + i, y + sy + j, col)
                             }
                         }
@@ -173,7 +92,7 @@ impl Screen {
             sx += 8 * scale;
         }
     }
-    pub fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: Color) {
+    fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: Color) {
         let (p1, p2) = if p1.0 < p2.0 { (p1, p2) } else { (p2, p1) };
         if p1.0 == p2.0 {
             let iter = if p1.1 < p2.1 {
@@ -214,17 +133,218 @@ impl Screen {
             }
         }
     }
-    pub fn clear(&mut self, col: Color) {
+    fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
+        self.draw_line((x, y), (x + w, y), col);
+        self.draw_line((x + w, y), (x + w, y + h), col);
+        self.draw_line((x + w, y + h), (x, y + h), col);
+        self.draw_line((x, y + h), (x, y), col);
+    }
+    fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
+        for nx in x..=(x + w) {
+            self.draw_line((nx, y), (nx, y + h), col);
+        }
+    }
+    fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
+        let x = x as i32;
+        let y = y as i32;
+        let mut x0: i32 = 0;
+        let mut y0: i32 = r as i32;
+        let mut d: i32 = 3 - 2 * r as i32;
+        if r == 0 {
+            return;
+        }
+        while y0 >= x0 {
+            self.draw((x + x0) as u32, (y - y0) as u32, col);
+            self.draw((x + y0) as u32, (y - x0) as u32, col);
+            self.draw((x + y0) as u32, (y + x0) as u32, col);
+            self.draw((x + x0) as u32, (y + y0) as u32, col);
+
+            self.draw((x - x0) as u32, (y + y0) as u32, col);
+            self.draw((x - y0) as u32, (y + x0) as u32, col);
+            self.draw((x - y0) as u32, (y - x0) as u32, col);
+            self.draw((x - x0) as u32, (y - y0) as u32, col);
+
+            x0 += 1;
+            if d < 0 {
+                d += 4 * x0 + 6;
+            } else {
+                y0 -= 1;
+                d += 4 * (x0 - y0) + 10;
+            }
+        }
+    }
+
+    fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
+        let x = x as i32;
+        let y = y as i32;
+        let mut x0: i32 = 0;
+        let mut y0: i32 = r as i32;
+        let mut d: i32 = 3 - 2 * r as i32;
+        if r == 0 {
+            return;
+        }
+        while y0 >= x0 {
+            self.draw_line(
+                ((x - x0) as u32, (y - y0) as u32),
+                ((x + x0) as u32, (y - y0) as u32),
+                col,
+            );
+            self.draw_line(
+                ((x - y0) as u32, (y - x0) as u32),
+                ((x + y0) as u32, (y - x0) as u32),
+                col,
+            );
+            self.draw_line(
+                ((x - x0) as u32, (y + y0) as u32),
+                ((x + x0) as u32, (y + y0) as u32),
+                col,
+            );
+            self.draw_line(
+                ((x - y0) as u32, (y + x0) as u32),
+                ((x + y0) as u32, (y + x0) as u32),
+                col,
+            );
+            x0 += 1;
+            if d < 0 {
+                d += 4 * x0 + 6;
+            } else {
+                y0 -= 1;
+                d += 4 * (x0 - y0) + 10;
+            }
+        }
+    }
+}
+
+impl ScreenTrait for Screen {
+    fn get_size(&mut self) -> (usize, usize) {
+        (self.screen.width as usize, self.screen.height as usize)
+    }
+    fn clear(&mut self, col: Color) {
         self.screen = Sprite::new_with_color(
             self.size.0, /* * self.size.2*/
             self.size.1, /* * self.size.2*/
             col,
         );
     }
-    pub(crate) fn get_raw(&mut self) -> Box<[u8]> {
-        self.screen.get_raw()
+    fn get_textsheet(&self) -> &Sprite {
+        &self.textsheet
     }
-    pub fn get_size(&mut self) -> (usize, usize) {
-        (self.screen.width as usize, self.screen.height as usize)
+    fn draw(&mut self, x: u32, y: u32, col: Color) {
+        if x >= self.size.0 || y >= self.size.1 {
+            return;
+        }
+        self.updated = true;
+        self.screen.set_pixel(x, y, col);
     }
 }
+pub trait SpriteTrait: ScreenTrait {
+    /// flip: (horizontal, vertical)
+    fn draw_sprite(&mut self, x: u32, y: u32, scale: u32, sprite: &Sprite, flip: (bool, bool)) {
+        let (mut fxs, mut fxm) = (0i32, 1i32);
+        let (mut fys, mut fym) = (0i32, 1i32);
+        let mut fx: i32;
+        let mut fy: i32;
+        if flip.0 {
+            fxs = sprite.width as i32 - 1;
+            fxm = -1;
+        }
+        if flip.1 {
+            fys = sprite.height as i32 - 1;
+            fym = -1;
+        }
+        if scale > 1 {
+            fx = fxs;
+            for i in 0..sprite.width {
+                fy = fys;
+                for j in 0..sprite.height {
+                    for is in 0..scale {
+                        for js in 0..scale {
+                            self.draw(
+                                (x + (i * scale) + is) as u32,
+                                (y + (j * scale) + js) as u32,
+                                sprite.get_pixel(fx as u32, fy as u32),
+                            );
+                        }
+                    }
+                    fy += fym;
+                }
+                fx += fxm;
+            }
+        } else {
+            fx = fxs;
+            for i in 0..sprite.width {
+                fy = fys;
+                for j in 0..sprite.height {
+                    self.draw(
+                        (x + i) as u32,
+                        (y + j) as u32,
+                        sprite.get_pixel(fx as u32, fy as u32),
+                    );
+                    fy += fym;
+                }
+                fx += fxm;
+            }
+        }
+    }
+    fn draw_partial_sprite(
+        &mut self,
+        x: u32,
+        y: u32,
+        sprite: &Sprite,
+        ox: u32,
+        oy: u32,
+        w: u32,
+        h: u32,
+        scale: u32,
+        flip: (bool, bool),
+    ) {
+        let (mut fxs, mut fxm) = (0i32, 1i32);
+        let (mut fys, mut fym) = (0i32, 1i32);
+        let mut fx: i32;
+        let mut fy: i32;
+        if flip.0 {
+            fxs = w as i32 - 1;
+            fxm = -1;
+        }
+        if flip.1 {
+            fys = h as i32 - 1;
+            fym = -1;
+        }
+
+        if scale > 1 {
+            fx = fxs;
+            for i in 0..w {
+                fy = fys;
+                for j in 0..h {
+                    for is in 0..scale {
+                        for js in 0..scale {
+                            self.draw(
+                                (x + (i * scale) + is) as u32,
+                                (y + (j * scale) + js) as u32,
+                                sprite.get_pixel(fx as u32 + ox, fy as u32 + oy),
+                            );
+                        }
+                    }
+                    fy += fym;
+                    fx += fxm;
+                }
+            }
+        } else {
+            fx = fxs;
+            for i in 0..w {
+                fy = fys;
+                for j in 0..h {
+                    self.draw(
+                        (x + i) as u32,
+                        (y + j) as u32,
+                        sprite.get_pixel(fx as u32 + ox, fy as u32 + oy),
+                    );
+                    fy += fym;
+                }
+                fx += fxm;
+            }
+        }
+    }
+}
+
+impl<T: ScreenTrait> SpriteTrait for T {}
