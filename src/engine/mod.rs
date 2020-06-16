@@ -4,15 +4,9 @@ mod handler;
 pub mod keyboard;
 mod logic;
 mod screen;
+/// Collection of trait used by the user
+pub mod traits;
 
 pub use graphics::{Color, Sprite};
 pub use logic::Engine;
-pub use screen::Screen;
-
-/// Module that re-export Traits
-pub mod traits {
-    /// Basic Drawing Trait (basic shapes,...)
-    pub use super::screen::ScreenTrait;
-    /// Handlings Sprites
-    pub use super::screen::SpriteTrait;
-}
+pub use screen::{PixelMode, Screen};

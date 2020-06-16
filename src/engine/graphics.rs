@@ -55,7 +55,7 @@ impl Sprite {
         if y >= self.height || x >= self.width {
             return;
         }
-        self.raw[(y * self.width + x) as usize * 4 + 0] = col.r;
+        self.raw[(y * self.width + x) as usize * 4] = col.r;
         self.raw[(y * self.width + x) as usize * 4 + 1] = col.g;
         self.raw[(y * self.width + x) as usize * 4 + 2] = col.b;
         self.raw[(y * self.width + x) as usize * 4 + 3] = col.a;
@@ -66,7 +66,7 @@ impl Sprite {
         if x >= self.width || y >= self.height {
             return col;
         }
-        col.r = self.raw[(y * self.width + x) as usize * 4 + 0];
+        col.r = self.raw[(y * self.width + x) as usize * 4];
         col.g = self.raw[(y * self.width + x) as usize * 4 + 1];
         col.b = self.raw[(y * self.width + x) as usize * 4 + 2];
         col.a = self.raw[(y * self.width + x) as usize * 4 + 3];

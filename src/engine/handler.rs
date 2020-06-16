@@ -1,9 +1,9 @@
 use super::graphics::{Color, Sprite};
 use super::logic::RenderBarrier;
-use super::screen::{Screen, ScreenTrait};
+use super::screen::Screen;
+use super::traits::*;
 use crate::gfx;
 use gfx::{traits::FactoryExt, Device};
-use glutin::{Event, WindowEvent};
 use parking_lot::Mutex;
 use std::sync::Arc;
 gfx_defines! {
@@ -15,7 +15,7 @@ gfx_defines! {
 
     pipeline pipe {
         vbuf: gfx::VertexBuffer<Vertex> = (),
-        awesome: gfx::TextureSampler<[f32; 4]> = "t_Awesome",
+        texture: gfx::TextureSampler<[f32; 4]> = "t_Texture",
         out: gfx::RenderTarget<ColorFormat> = "Target0",
     }
 }
@@ -24,18 +24,8 @@ pub type ColorFormat = gfx::format::Rgba8;
 pub type DepthFormat = gfx::format::DepthStencil;
 
 pub struct GlHandler {
-    events: Arc<Mutex<Vec<Events>>>,
     name: Arc<Mutex<String>>,
     _thread: std::thread::JoinHandle<()>,
-}
-#[derive(Debug, Clone, Copy)]
-pub enum Events {
-    /// A keyboard input
-    Keyboard {
-        /// The input
-        inp: glutin::KeyboardInput,
-    },
-    Close,
 }
 
 impl GlHandler {
@@ -65,10 +55,6 @@ impl GlHandler {
     ];
 
     const INDICES: &'static [u16] = &[0, 1, 2, 2, 3, 0];
-    pub fn events(&self) -> Vec<Events> {
-        let lock = self.events.lock();
-        lock.to_vec()
-    }
 
     pub fn update_title(&mut self, new_name: String) {
         let mut lock = self.name.lock();
@@ -80,13 +66,11 @@ impl GlHandler {
         rec: std::sync::mpsc::Receiver<RenderBarrier>,
         mutex: Arc<Mutex<Screen>>,
     ) -> Self {
-        let event_in_struct = Arc::new(Mutex::new(Vec::new()));
-        let events = event_in_struct.clone();
         let name_in_struct = Arc::new(Mutex::new(String::new()));
         let name = name_in_struct.clone();
         let render_thread = std::thread::spawn(move || {
-            use gfx::Factory;
             let events_loop = glutin::EventsLoop::new();
+            use gfx::Factory;
             let window_config = glutin::WindowBuilder::new()
                 .with_title("".to_string())
                 .with_dimensions((size.0 * size.2, size.1 * size.2).into())
@@ -133,7 +117,7 @@ impl GlHandler {
                 //let () = sampler;
             let data = pipe::Data {
                 vbuf: vertex_buffer,
-                awesome: (texture, sampler),
+                texture: (texture, sampler),
                 out: main_color,
             };
             let mut gl = GlInThread {
@@ -145,28 +129,23 @@ impl GlHandler {
                 slice,
                 data,
                 unblocking: rec,
-                event_loop: events_loop,
             };
             loop {
                 if gl.unblocking.recv().is_err() {
                     return;
                 }
                 let mut lock = mutex.lock();
-                let mut event_lock = events.lock();
                 let name_lock = name.lock();
-                *event_lock = gl.events();
                 let image_data = lock.get_raw();
                 let size = lock.get_size();
                 gl.update_frame(image_data, size);
                 gl.update_title(name_lock.to_string());
                 std::mem::drop(lock);
-                std::mem::drop(event_lock);
                 std::mem::drop(name_lock);
             }
         });
 
         GlHandler {
-            events: event_in_struct,
             _thread: render_thread,
             name: name_in_struct,
         }
@@ -181,27 +160,8 @@ struct GlInThread {
     slice: gfx::Slice<gfx_device_gl::Resources>,
     data: pipe::Data<gfx_device_gl::Resources>,
     unblocking: std::sync::mpsc::Receiver<RenderBarrier>,
-    event_loop: glutin::EventsLoop,
 }
-
 impl GlInThread {
-    pub fn events(&mut self) -> Vec<Events> {
-        let mut events = Vec::new();
-        self.event_loop.poll_events(|event| {
-            if let Event::WindowEvent { event, .. } = event {
-                match event {
-                    WindowEvent::KeyboardInput { input: inp, .. } => {
-                        events.push(Events::Keyboard { inp });
-                    }
-                    WindowEvent::CloseRequested => {
-                        events.push(Events::Close);
-                    }
-                    _ => {}
-                }
-            }
-        });
-        events
-    }
     pub fn load_texture<F, R>(
         factory: &mut F,
         img: Box<[u8]>,
@@ -227,7 +187,7 @@ impl GlInThread {
         self.window_ctx.window().set_title(&text);
     }
     pub fn update_frame(&mut self, image: Box<[u8]>, size: (usize, usize)) {
-        self.data.awesome.0 = Self::load_texture(&mut self.factory, image, size);
+        self.data.texture.0 = Self::load_texture(&mut self.factory, image, size);
         self.encoder.clear(&self.data.out, Color::GREEN.into());
         self.encoder.draw(&self.slice, &self.pso, &self.data);
         self.encoder.flush(&mut self.device);

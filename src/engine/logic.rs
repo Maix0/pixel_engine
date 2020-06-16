@@ -1,4 +1,4 @@
-use super::handler::{Events, GlHandler};
+use super::handler::GlHandler;
 use super::keyboard;
 use super::keyboard::KeySet;
 use super::screen::Screen;
@@ -9,6 +9,15 @@ use std::sync::Arc;
 // Just used for the blocking of the rendering (no frame jump)
 pub(crate) struct RenderBarrier;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Events {
+    /// A keyboard input
+    Keyboard {
+        /// The input
+        inp: glutin::KeyboardInput,
+    },
+    Close,
+}
 // Force the `new_frame` to return false;
 
 /**
@@ -52,6 +61,7 @@ pub struct Engine {
     k_held: std::collections::HashSet<keyboard::Key>,
     k_released: std::collections::HashSet<keyboard::Key>,
     blocking: std::sync::mpsc::SyncSender<RenderBarrier>,
+    event_loop: glutin::EventsLoop,
 }
 impl std::fmt::Debug for Engine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -87,7 +97,29 @@ impl Engine {
             k_released: std::collections::HashSet::new(),
             screen_mutex,
             blocking,
+            event_loop: glutin::EventsLoop::new(),
         }
+    }
+    pub fn events(&mut self) -> Vec<Events> {
+        use glutin::{Event, WindowEvent};
+        let mut events = Vec::new();
+        self.event_loop.poll_events(|event| {
+            if let Event::WindowEvent { event, .. } = event {
+                match event {
+                    WindowEvent::KeyboardInput { input: inp, .. } => {
+                        /*if inp.state == ElementState::Released {
+                            println!("[\x1b[32mRELEASE\x1b[0m]");
+                        }*/
+                        events.push(Events::Keyboard { inp });
+                    }
+                    WindowEvent::CloseRequested => {
+                        events.push(Events::Close);
+                    }
+                    _ => {}
+                }
+            }
+        });
+        events
     }
     /// Run the engine with given function;
     pub fn run(
@@ -96,6 +128,7 @@ impl Engine {
     ) {
         let mut force_exit = false;
         'mainloop: loop {
+            self.update_frame();
             self.elapsed = (std::time::SystemTime::now()
                 .duration_since(self.timer)
                 .map_err(|err| err.to_string())
@@ -116,7 +149,7 @@ impl Engine {
             }
             self.k_pressed.clear();
             self.k_released.clear();
-            for event in self.handler.events() {
+            for event in self.events() {
                 match event {
                     Events::Keyboard { inp } => {
                         if let Some(k) = inp.virtual_keycode {
@@ -135,13 +168,16 @@ impl Engine {
                 }
             }
             let r = (main_func)(self);
-            if r.is_err() || r.as_ref().ok() == Some(&false) || force_exit == true {
-                if r.is_err() {
-                    println!("Game Stopped:\n{:?}", r.unwrap_err());
+            if r.is_err() || r.as_ref().ok() == Some(&false) || force_exit {
+                if let Err(e) = r {
+                    if cfg!(debug_assertions) {
+                        println!("Game Stopped:\n{:?}", e);
+                    } else {
+                        println!("Game Stopped:\n{}", e);
+                    }
                 }
                 break 'mainloop;
             }
-            self.update_frame();
         }
     }
     fn update_frame(&mut self) {
