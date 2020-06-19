@@ -20,7 +20,7 @@ impl Input {
             released: false,
         }
     }
-    pub fn any(&self) -> bool {
+    pub fn any(self) -> bool {
         self.pressed || self.held || self.released
     }
 }

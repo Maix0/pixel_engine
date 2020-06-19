@@ -2,7 +2,7 @@ use super::handler::GlHandler;
 use super::inputs::{self, Input, KeySet, Mouse, MouseBtn, MouseWheel};
 use super::screen::Screen;
 use parking_lot::Mutex;
-use std::sync::Arc; //type GameLogic<'game> = &'game mut (dyn FnMut(&mut Engine) -> Result<bool, String>);
+use std::sync::Arc;
 
 // Just used for the blocking of the rendering (no frame jump)
 pub(crate) struct RenderBarrier;
@@ -22,8 +22,6 @@ pub(crate) enum Events {
     /// false => released
     MouseClick(MouseBtn, bool),
 }
-
-// Force the `new_frame` to return false;
 
 /**
  *  Bone of the Engine, join everything;
@@ -131,14 +129,12 @@ impl Engine {
                                 } else {
                                     MouseWheel::None
                                 }
+                            } else if y > 0.0 {
+                                MouseWheel::Down
+                            } else if y < 0.0 {
+                                MouseWheel::Up
                             } else {
-                                if y > 0.0 {
-                                    MouseWheel::Down
-                                } else if y < 0.0 {
-                                    MouseWheel::Up
-                                } else {
-                                    MouseWheel::None
-                                }
+                                MouseWheel::None
                             }));
                         }
                         glutin::MouseScrollDelta::PixelDelta(lp) => {
@@ -151,14 +147,12 @@ impl Engine {
                                 } else {
                                     MouseWheel::None
                                 }
+                            } else if y > 0.0 {
+                                MouseWheel::Down
+                            } else if y < 0.0 {
+                                MouseWheel::Up
                             } else {
-                                if y > 0.0 {
-                                    MouseWheel::Down
-                                } else if y < 0.0 {
-                                    MouseWheel::Up
-                                } else {
-                                    MouseWheel::None
-                                }
+                                MouseWheel::None
                             }));
                         }
                     },
