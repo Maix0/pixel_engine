@@ -1,3 +1,68 @@
+#[derive(Debug, Clone, Copy)]
+pub struct Input {
+    pub pressed: bool,
+    pub held: bool,
+    pub released: bool,
+}
+
+impl Input {
+    pub const fn new(pressed: bool, held: bool, released: bool) -> Self {
+        Input {
+            pressed,
+            held,
+            released,
+        }
+    }
+    pub const fn default() -> Self {
+        Input {
+            pressed: false,
+            held: false,
+            released: false,
+        }
+    }
+    pub fn any(&self) -> bool {
+        self.pressed || self.held || self.released
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Mouse {
+    /// State of each mouse button
+    /// 0 => None
+    /// 1 => Pressed
+    /// 2 => Held
+    /// 3 => Released
+    pub(crate) buttons: [Input; 3],
+    pub(crate) pos: (u32, u32),
+    pub(crate) wheel: MouseWheel,
+}
+
+impl Mouse {
+    pub const fn new() -> Self {
+        Mouse {
+            buttons: [Input::default(), Input::default(), Input::default()],
+            pos: (0, 0),
+            wheel: MouseWheel::None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum MouseBtn {
+    Left,
+    Right,
+    Middle,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum MouseWheel {
+    None,
+    Up,
+    Down,
+    Right,
+    Left,
+}
+
 pub use glutin::VirtualKeyCode as Keycodes;
 #[derive(Eq, PartialEq, Debug, Hash, Clone, Copy)]
 /// Represent a Key

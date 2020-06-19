@@ -1,23 +1,28 @@
 use super::handler::GlHandler;
-use super::keyboard;
-use super::keyboard::KeySet;
+use super::inputs::{self, Input, KeySet, Mouse, MouseBtn, MouseWheel};
 use super::screen::Screen;
 use parking_lot::Mutex;
-use std::sync::Arc;
-//type GameLogic<'game> = &'game mut (dyn FnMut(&mut Engine) -> Result<bool, String>);
+use std::sync::Arc; //type GameLogic<'game> = &'game mut (dyn FnMut(&mut Engine) -> Result<bool, String>);
 
 // Just used for the blocking of the rendering (no frame jump)
 pub(crate) struct RenderBarrier;
 
 #[derive(Debug, Clone, Copy)]
-pub enum Events {
+pub(crate) enum Events {
     /// A keyboard input
     Keyboard {
         /// The input
         inp: glutin::KeyboardInput,
     },
     Close,
+    MouseMove(f64, f64),
+    MouseWheel(MouseWheel),
+    /// The bool indicate the type of event
+    /// true => pressed
+    /// false => released
+    MouseClick(MouseBtn, bool),
 }
+
 // Force the `new_frame` to return false;
 
 /**
@@ -57,11 +62,11 @@ pub struct Engine {
     pub screen: Screen,
     screen_mutex: Arc<Mutex<Screen>>,
     handler: GlHandler,
-    k_pressed: std::collections::HashSet<keyboard::Key>,
-    k_held: std::collections::HashSet<keyboard::Key>,
-    k_released: std::collections::HashSet<keyboard::Key>,
+    k_pressed: std::collections::HashSet<inputs::Key>,
+    k_held: std::collections::HashSet<inputs::Key>,
+    k_released: std::collections::HashSet<inputs::Key>,
+    mouse: Mouse,
     blocking: std::sync::mpsc::SyncSender<RenderBarrier>,
-    event_loop: glutin::EventsLoop,
 }
 impl std::fmt::Debug for Engine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -97,23 +102,82 @@ impl Engine {
             k_released: std::collections::HashSet::new(),
             screen_mutex,
             blocking,
-            event_loop: glutin::EventsLoop::new(),
+            mouse: Mouse::new(),
         }
     }
-    pub fn events(&mut self) -> Vec<Events> {
+    fn events(&mut self) -> Vec<Events> {
         use glutin::{Event, WindowEvent};
         let mut events = Vec::new();
-        self.event_loop.poll_events(|event| {
-            if let Event::WindowEvent { event, .. } = event {
-                match event {
+        self.handler.event_loop.poll_events(|e| {
+            if let Event::WindowEvent { event: e, .. } = e {
+                match e {
                     WindowEvent::KeyboardInput { input: inp, .. } => {
-                        /*if inp.state == ElementState::Released {
-                            println!("[\x1b[32mRELEASE\x1b[0m]");
-                        }*/
                         events.push(Events::Keyboard { inp });
                     }
                     WindowEvent::CloseRequested => {
                         events.push(Events::Close);
+                    }
+                    WindowEvent::CursorMoved { position, .. } => {
+                        let (x, y): (f64, f64) = position.into();
+                        events.push(Events::MouseMove(x, y));
+                    }
+                    WindowEvent::MouseWheel { delta, .. } => match delta {
+                        glutin::MouseScrollDelta::LineDelta(x, y) => {
+                            events.push(Events::MouseWheel(if x.abs() > y.abs() {
+                                if x > 0.0 {
+                                    MouseWheel::Right
+                                } else if x < 0.0 {
+                                    MouseWheel::Left
+                                } else {
+                                    MouseWheel::None
+                                }
+                            } else {
+                                if y > 0.0 {
+                                    MouseWheel::Down
+                                } else if y < 0.0 {
+                                    MouseWheel::Up
+                                } else {
+                                    MouseWheel::None
+                                }
+                            }));
+                        }
+                        glutin::MouseScrollDelta::PixelDelta(lp) => {
+                            let (x, y): (f64, f64) = lp.into();
+                            events.push(Events::MouseWheel(if x.abs() > y.abs() {
+                                if x > 0.0 {
+                                    MouseWheel::Right
+                                } else if x < 0.0 {
+                                    MouseWheel::Left
+                                } else {
+                                    MouseWheel::None
+                                }
+                            } else {
+                                if y > 0.0 {
+                                    MouseWheel::Down
+                                } else if y < 0.0 {
+                                    MouseWheel::Up
+                                } else {
+                                    MouseWheel::None
+                                }
+                            }));
+                        }
+                    },
+                    WindowEvent::MouseInput { button, state, .. } => {
+                        if std::mem::discriminant(&button)
+                            != std::mem::discriminant(&glutin::MouseButton::Other(0))
+                        {
+                            events.push(Events::MouseClick(
+                                match button {
+                                    glutin::MouseButton::Left => MouseBtn::Left,
+                                    glutin::MouseButton::Right => MouseBtn::Right,
+                                    glutin::MouseButton::Middle => MouseBtn::Middle,
+                                    glutin::MouseButton::Other(_) => {
+                                        unreachable!("MouseButton::Other()")
+                                    }
+                                },
+                                state == glutin::ElementState::Pressed,
+                            ));
+                        }
                     }
                     _ => {}
                 }
@@ -128,7 +192,6 @@ impl Engine {
     ) {
         let mut force_exit = false;
         'mainloop: loop {
-            self.update_frame();
             self.elapsed = (std::time::SystemTime::now()
                 .duration_since(self.timer)
                 .map_err(|err| err.to_string())
@@ -149,21 +212,64 @@ impl Engine {
             }
             self.k_pressed.clear();
             self.k_released.clear();
+            for i in 0..3 {
+                if self.mouse.buttons[i].released {
+                    self.mouse.buttons[i].released = false;
+                }
+                if self.mouse.buttons[i].pressed {
+                    self.mouse.buttons[i].pressed = false;
+                    self.mouse.buttons[i].held = true;
+                }
+            }
+
+            self.mouse.wheel = MouseWheel::None;
             for event in self.events() {
                 match event {
                     Events::Keyboard { inp } => {
                         if let Some(k) = inp.virtual_keycode {
                             if inp.state == glutin::ElementState::Released {
-                                self.k_pressed.remove(&(keyboard::Key::from(inp)));
-                                self.k_held.remove(&(keyboard::Key::from(inp)));
-                                self.k_released.insert(keyboard::Key::from(inp));
+                                self.k_pressed.remove(&(inputs::Key::from(inp)));
+                                self.k_held.remove(&(inputs::Key::from(inp)));
+                                self.k_released.insert(inputs::Key::from(inp));
                             } else if !self.k_held.has(k) {
-                                self.k_pressed.insert(keyboard::Key::from(inp));
+                                self.k_pressed.insert(inputs::Key::from(inp));
                             }
                         }
                     }
                     Events::Close => {
                         force_exit = true;
+                    }
+                    Events::MouseClick(btn, pressed) => {
+                        if pressed {
+                            self.mouse.buttons[match btn {
+                                MouseBtn::Left => 0,
+                                MouseBtn::Right => 1,
+                                MouseBtn::Middle => 2,
+                            }]
+                            .pressed = true;
+                        } else {
+                            self.mouse.buttons[match btn {
+                                MouseBtn::Left => 0,
+                                MouseBtn::Right => 1,
+                                MouseBtn::Middle => 2,
+                            }]
+                            .released = true;
+                            self.mouse.buttons[match btn {
+                                MouseBtn::Left => 0,
+                                MouseBtn::Right => 1,
+                                MouseBtn::Middle => 2,
+                            }]
+                            .held = false;
+                        }
+                    }
+                    Events::MouseMove(x, y) => {
+                        self.mouse.pos = (
+                            (x / self.size.2 as f64).floor() as u32,
+                            (y / self.size.2 as f64).floor() as u32,
+                        );
+                    }
+                    Events::MouseWheel(dir) => {
+                        self.mouse.wheel = dir;
                     }
                 }
             }
@@ -178,6 +284,7 @@ impl Engine {
                 }
                 break 'mainloop;
             }
+            self.update_frame();
         }
     }
     fn update_frame(&mut self) {
@@ -187,33 +294,27 @@ impl Engine {
         self.blocking.send(RenderBarrier).unwrap();
     }
 
-    /// Know if key is pressed
-    pub fn is_pressed(&self, keycode: keyboard::Keycodes) -> bool {
-        self.k_pressed.has(keycode)
+    /// Get The status of a key
+    #[inline]
+    pub fn get_key(&self, keycode: inputs::Keycodes) -> Input {
+        Input::new(
+            self.k_pressed.has(keycode),
+            self.k_held.has(keycode),
+            self.k_released.has(keycode),
+        )
     }
-    /// Know if key is held
-    pub fn is_held(&self, keycode: keyboard::Keycodes) -> bool {
-        self.k_held.has(keycode)
+
+    pub fn get_mouse_btn(&self, btn: MouseBtn) -> Input {
+        self.mouse.buttons[match btn {
+            MouseBtn::Left => 0,
+            MouseBtn::Right => 1,
+            MouseBtn::Middle => 2,
+        }]
     }
-    /// Know if key is released
-    pub fn is_released(&self, keycode: keyboard::Keycodes) -> bool {
-        self.k_released.has(keycode)
+    pub fn get_mouse_location(&self) -> (u32, u32) {
+        self.mouse.pos
     }
-    /// Know if a key is pressed or held
-    pub fn get_key(&self, keycode: keyboard::Keycodes) -> Option<&keyboard::Key> {
-        if self.is_pressed(keycode) {
-            for k in &self.k_pressed {
-                if k.key == keycode {
-                    return Some(k);
-                }
-            }
-        } else if self.is_held(keycode) {
-            for k in &self.k_held {
-                if k.key == keycode {
-                    return Some(k);
-                }
-            }
-        }
-        None
+    pub fn get_mouse_wheel(&self) -> MouseWheel {
+        self.mouse.wheel
     }
 }

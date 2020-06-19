@@ -16,8 +16,10 @@ parking_lot = "0.10.2"
 
 [dev-dependencies]
 rand= "*"
-#pxengine_ext_test = {path= "../pxengine_ext_test"}
 
 [profile.release]
 debug = true
 
+
+[feature]
+addon-2dtransform=[]

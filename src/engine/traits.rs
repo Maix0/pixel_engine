@@ -201,6 +201,7 @@ pub trait ShapesTrait: ScreenTrait {
     }
 
     fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
+        use std::cmp::max;
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
@@ -211,23 +212,23 @@ pub trait ShapesTrait: ScreenTrait {
         }
         while y0 >= x0 {
             self.draw_line(
-                ((x - x0) as u32, (y - y0) as u32),
-                ((x + x0) as u32, (y - y0) as u32),
+                (max(x - x0, 0) as u32, max(y - y0, 0) as u32),
+                (max(x + x0, 0) as u32, max(y - y0, 0) as u32),
                 col,
             );
             self.draw_line(
-                ((x - y0) as u32, (y - x0) as u32),
-                ((x + y0) as u32, (y - x0) as u32),
+                (max(x - y0, 0) as u32, max(y - x0, 0) as u32),
+                (max(x + y0, 0) as u32, max(y - x0, 0) as u32),
                 col,
             );
             self.draw_line(
-                ((x - x0) as u32, (y + y0) as u32),
-                ((x + x0) as u32, (y + y0) as u32),
+                (max(x - x0, 0) as u32, max(y + y0, 0) as u32),
+                (max(x + x0, 0) as u32, max(y + y0, 0) as u32),
                 col,
             );
             self.draw_line(
-                ((x - y0) as u32, (y + x0) as u32),
-                ((x + y0) as u32, (y + x0) as u32),
+                (max(x - y0, 0) as u32, max(y + x0, 0) as u32),
+                (max(x + y0, 0) as u32, max(y + x0, 0) as u32),
                 col,
             );
             x0 += 1;

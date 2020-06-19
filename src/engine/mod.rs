@@ -1,7 +1,7 @@
 mod graphics;
 mod handler;
-/// Keyboard module
-pub mod keyboard;
+/// User Input module
+pub mod inputs;
 mod logic;
 mod screen;
 /// Collection of trait used by the user

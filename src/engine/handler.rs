@@ -26,6 +26,7 @@ pub type DepthFormat = gfx::format::DepthStencil;
 pub struct GlHandler {
     name: Arc<Mutex<String>>,
     _thread: std::thread::JoinHandle<()>,
+    pub(crate) event_loop: glutin::EventsLoop,
 }
 
 impl GlHandler {
@@ -68,30 +69,27 @@ impl GlHandler {
     ) -> Self {
         let name_in_struct = Arc::new(Mutex::new(String::new()));
         let name = name_in_struct.clone();
+        let events_loop = glutin::EventsLoop::new();
+        use gfx::Factory;
+        let window_config = glutin::WindowBuilder::new()
+            .with_title("".to_string())
+            .with_dimensions((size.0 * size.2, size.1 * size.2).into())
+            .with_resizable(false);
+
+        let (api, version) = if cfg!(target_os = "emscripten") {
+            (glutin::Api::WebGl, (2, 0))
+        } else {
+            (glutin::Api::OpenGl, (3, 2))
+        };
+
+        let context_wraper = glutin::ContextBuilder::new()
+            .with_gl(glutin::GlRequest::Specific(api, version))
+            .with_vsync(true)
+            .build_windowed(window_config, &events_loop)
+            .expect("Error while constructing context wraper");
         let render_thread = std::thread::spawn(move || {
-            let events_loop = glutin::EventsLoop::new();
-            use gfx::Factory;
-            let window_config = glutin::WindowBuilder::new()
-                .with_title("".to_string())
-                .with_dimensions((size.0 * size.2, size.1 * size.2).into())
-                .with_resizable(false);
-
-            let (api, version) = if cfg!(target_os = "emscripten") {
-                (glutin::Api::WebGl, (2, 0))
-            } else {
-                (glutin::Api::OpenGl, (3, 2))
-            };
-
-            let context = glutin::ContextBuilder::new()
-                .with_gl(glutin::GlRequest::Specific(api, version))
-                .with_vsync(false);
             let (window_ctx, device, mut factory, main_color, _) =
-                gfx_window_glutin::init::<ColorFormat, DepthFormat>(
-                    window_config,
-                    context,
-                    &events_loop,
-                )
-                .expect("Failed to create window");
+                gfx_window_glutin::init_existing::<ColorFormat, DepthFormat>(context_wraper);
             let encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
             let pso = factory
                 .create_pipeline_simple(
@@ -120,6 +118,7 @@ impl GlHandler {
                 texture: (texture, sampler),
                 out: main_color,
             };
+
             let mut gl = GlInThread {
                 window_ctx,
                 device,
@@ -137,8 +136,8 @@ impl GlHandler {
                 let mut lock = mutex.lock();
                 let name_lock = name.lock();
                 let image_data = lock.get_raw();
-                let size = lock.get_size();
-                gl.update_frame(image_data, size);
+                let size_img = lock.get_size();
+                gl.update_frame(image_data, size_img);
                 gl.update_title(name_lock.to_string());
                 std::mem::drop(lock);
                 std::mem::drop(name_lock);
@@ -148,6 +147,7 @@ impl GlHandler {
         GlHandler {
             _thread: render_thread,
             name: name_in_struct,
+            event_loop: events_loop,
         }
     }
 }
