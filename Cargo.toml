@@ -8,18 +8,11 @@ edition = "2018"
 
 [dependencies]
 gfx = "0.18"
-gfx_window_glutin = "*"
-glutin ="*"
-image ="*"
-gfx_device_gl ="*"
+gfx_window_glutin = "0.31.0"
+glutin = "0.24.1"
+image = "0.23.5"
+gfx_device_gl = "0.16.2"
 parking_lot = "0.10.2"
 
 [dev-dependencies]
-rand= "*"
-
-[profile.release]
-debug = true
-
-
-[feature]
-addon-2dtransform=[]
+rand= "0.7.3"
