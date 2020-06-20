@@ -3,7 +3,9 @@
 pub struct Sprite {
     //raw: image::RgbaImage,
     raw: Box<[u8]>,
+    /// The width (in pixels) of the `Sprite`
     pub width: u32,
+    /// The height (in pixels) of the `Sprite`
     pub height: u32,
 }
 

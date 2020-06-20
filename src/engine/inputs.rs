@@ -1,11 +1,16 @@
 #[derive(Debug, Clone, Copy)]
+/// A Simple Struct that Represent an Input
 pub struct Input {
+    /// Is the input pressed on that frame
     pub pressed: bool,
+    /// Is the input held on that frame
     pub held: bool,
+    /// Is the input released on that frame
     pub released: bool,
 }
 
 impl Input {
+    /// Create a new [`Input`] with the given values
     pub const fn new(pressed: bool, held: bool, released: bool) -> Self {
         Input {
             pressed,
@@ -13,6 +18,7 @@ impl Input {
             released,
         }
     }
+    /// Create an [`Input`] where all field are set to false
     pub const fn default() -> Self {
         Input {
             pressed: false,
@@ -20,6 +26,7 @@ impl Input {
             released: false,
         }
     }
+    /// Return true if any of the field is true, false otherwise
     pub fn any(self) -> bool {
         self.pressed || self.held || self.released
     }
@@ -46,20 +53,29 @@ impl Mouse {
         }
     }
 }
-
+/// Represent a Mouse Button
 #[derive(Debug, Clone, Copy)]
 pub enum MouseBtn {
+    /// The left click
     Left,
+    /// The right click
     Right,
+    /// The left middle click (scroll wheel click)
     Middle,
 }
 
+/// Represent a scroll wheel Direction
 #[derive(Debug, Clone, Copy)]
 pub enum MouseWheel {
+    /// No Scroll
     None,
+    /// Scrolling Up
     Up,
+    /// Scrolling Down
     Down,
+    /// Scrolling Right
     Right,
+    /// Scrolling Left
     Left,
 }
 
@@ -144,7 +160,7 @@ impl From<glutin::KeyboardInput> for Key {
 }
 
 /// Trait to handle Keysets
-pub trait KeySet {
+pub(crate) trait KeySet {
     /// Return true if the set has the key
     fn has(&self, key: Keycodes) -> bool;
 }

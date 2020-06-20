@@ -6,16 +6,29 @@ macro_rules! impl_trait {
         impl<T: ScreenTrait> $trait for T {}
     };
 }
-
+///The Basic Drawing Trait
+///All that is needed to draw one pixel one the target
 pub trait ScreenTrait {
+    /// Get the size of the target
     fn get_size(&mut self) -> (usize, usize);
+    /// Get The textsheet (A [`Sprite`])
     fn get_textsheet(&self) -> &Sprite;
+    /// Clear the Screen With the given [`Color`]
     fn clear(&mut self, col: Color);
+    /// Set the pixel data at the given coordinates to the given Color
+    /// Will use the current [`PixelMode`]
     fn draw(&mut self, x: u32, y: u32, col: Color);
+    /// Get the Pixel Data at the given coordinates
     fn get_pixel(&self, x: u32, y: u32) -> Color;
+    /// Return the [`PixelMode`]
     fn get_pixel_mode(&self) -> PixelMode;
+    /// Set the [`PixelMode`]
     fn set_pixel_mode(&mut self, mode: PixelMode);
+    /// Get the Blend Factor
+    /// Used for alpha calculations
     fn get_blend_factor(&self) -> f32;
+    /// Set the Blend Factor
+    /// Used for alpha calculations
     fn set_blend_factor(&mut self, f: f32);
 }
 impl ScreenTrait for Screen {
@@ -44,7 +57,7 @@ impl ScreenTrait for Screen {
             }
             PixelMode::Mask => {
                 let current_color: Color = self.get_pixel(x, y);
-                let alpha: f32 = (col.a as f32 / 255.0f32) as f32 * self.get_blend_factor();
+                let alpha: f32 = (col.a as f32 / 255.0f32) * self.get_blend_factor();
                 let inverse_alpha: f32 = 1.0 - alpha;
                 let red: f32 = alpha * col.r as f32 + inverse_alpha * current_color.r as f32;
                 let green: f32 = alpha * col.g as f32 + inverse_alpha * current_color.g as f32;
@@ -78,8 +91,17 @@ impl ScreenTrait for Screen {
         }
     }
 }
+
+/// A trait regroups all the Shapes Drawing
+/// You don't need to implement anything other that [`ScreenTrait`] to use it
 pub trait ShapesTrait: ScreenTrait {
-    fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: String) {
+    /// Draw text to the screen
+    /// `scale` must be >= 1
+    /// The textsize will be equal to `scale * 8` for the height and `scale * 8 * text.len()` for
+    /// the width
+    /// This will handle `\n` treating it as a new line, but wont do any newline stuff if it is
+    /// drawing out of the screen
+    fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: &str) {
         let mut sx = 0;
         let mut sy = 0;
         for chr in text.chars() {
@@ -118,6 +140,9 @@ pub trait ShapesTrait: ScreenTrait {
             sx += 8 * scale;
         }
     }
+
+    /// Draw a line between two points,
+    /// You don't need to do anything with the points for it to work, it will swap them it needed.
     fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: Color) {
         let (p1, p2) = if p1.0 < p2.0 { (p1, p2) } else { (p2, p1) };
         if p1.0 == p2.0 {
@@ -159,17 +184,24 @@ pub trait ShapesTrait: ScreenTrait {
             }
         }
     }
+    /// Draw a rectangle with the top left corner at `(x, y)`
+    /// and the bottom right corner at `(x + w, y + h)` (both inclusive)
     fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
         self.draw_line((x, y), (x + w, y), col);
         self.draw_line((x + w, y), (x + w, y + h), col);
         self.draw_line((x + w, y + h), (x, y + h), col);
         self.draw_line((x, y + h), (x, y), col);
     }
+
+    /// Fill a rectangle with the top left corner at `(x, y)`
+    /// and the bottom right corner at `(x + w, y + h)` (both inclusive)
     fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
         for nx in x..=(x + w) {
             self.draw_line((nx, y), (nx, y + h), col);
         }
     }
+
+    /// Draw a circle with center `(x, y)` and raduis `r`
     fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
         let x = x as i32;
         let y = y as i32;
@@ -200,6 +232,7 @@ pub trait ShapesTrait: ScreenTrait {
         }
     }
 
+    /// Fill a circle with center `(x, y)` and raduis `r`
     fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
         use std::cmp::max;
         let x = x as i32;
@@ -240,12 +273,15 @@ pub trait ShapesTrait: ScreenTrait {
             }
         }
     }
+
+    /// Draw the edges of a triangle between the three points
     fn draw_triangle(&mut self, pts1: (u32, u32), pts2: (u32, u32), pts3: (u32, u32), col: Color) {
         self.draw_line(pts1, pts2, col);
         self.draw_line(pts1, pts3, col);
         self.draw_line(pts2, pts3, col);
     }
 
+    /// Fill the given triangle
     fn fill_triangle(&mut self, pts1: (u32, u32), pts2: (u32, u32), pts3: (u32, u32), col: Color) {
         self.draw_triangle(pts1, pts2, pts3, col);
         let pts1 = (pts1.0 as i64, pts1.1 as i64);
@@ -332,9 +368,12 @@ pub trait ShapesTrait: ScreenTrait {
         }
     }
 }
-
+/// A trait that will handle the drawing of Sprite onto the Target
 pub trait SpriteTrait: ScreenTrait {
+    /// Draw a Sprite with the top left corner at `(x, y)`
+    /// the flip arguement will allow fliping of the axis
     /// flip: (horizontal, vertical)
+    /// scale is the scale of the result (must be >= 1)
     fn draw_sprite(&mut self, x: u32, y: u32, scale: u32, sprite: &Sprite, flip: (bool, bool)) {
         let (mut fxs, mut fxm) = (0i32, 1i32);
         let (mut fys, mut fym) = (0i32, 1i32);
@@ -356,8 +395,8 @@ pub trait SpriteTrait: ScreenTrait {
                     for is in 0..scale {
                         for js in 0..scale {
                             self.draw(
-                                (x + (i * scale) + is) as u32,
-                                (y + (j * scale) + js) as u32,
+                                x + i * scale + is,
+                                y + j * scale + js,
                                 sprite.get_pixel(fx as u32, fy as u32),
                             );
                         }
@@ -371,28 +410,23 @@ pub trait SpriteTrait: ScreenTrait {
             for i in 0..sprite.width {
                 fy = fys;
                 for j in 0..sprite.height {
-                    self.draw(
-                        (x + i) as u32,
-                        (y + j) as u32,
-                        sprite.get_pixel(fx as u32, fy as u32),
-                    );
+                    self.draw(x + i, y + j, sprite.get_pixel(fx as u32, fy as u32));
                     fy += fym;
                 }
                 fx += fxm;
             }
         }
     }
+    /// Draw a chunk of the given [`Sprite`] onto the Target
+    /// `coords` is the top left corner of the Target
+    /// `o` is the Top left corner of the Sprite Chunk
+    /// and `size` is the `(width, height)` of the chunk
+    /// `flip` and `scale` is the same as [`SpriteTrait::draw_sprite()`]
     fn draw_partial_sprite(
         &mut self,
-        /*x: u32,
-        y: u32,*/
         coords: (u32, u32),
         sprite: &Sprite,
-        /*ox: u32,
-        oy: u32,*/
         o: (u32, u32),
-        /*w: u32,
-        h: u32,*/
         size: (u32, u32),
         scale: u32,
         flip: (bool, bool),
@@ -422,8 +456,8 @@ pub trait SpriteTrait: ScreenTrait {
                     for is in 0..scale {
                         for js in 0..scale {
                             self.draw(
-                                (x + (i * scale) + is) as u32,
-                                (y + (j * scale) + js) as u32,
+                                x + i * scale + is,
+                                y + j * scale + js,
                                 sprite.get_pixel(fx as u32 + ox, fy as u32 + oy),
                             );
                         }
@@ -438,8 +472,8 @@ pub trait SpriteTrait: ScreenTrait {
                 fy = fys;
                 for j in 0..h {
                     self.draw(
-                        (x + i) as u32,
-                        (y + j) as u32,
+                        x + i,
+                        y + j,
                         sprite.get_pixel(fx as u32 + ox, fy as u32 + oy),
                     );
                     fy += fym;

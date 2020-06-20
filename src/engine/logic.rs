@@ -284,7 +284,6 @@ impl Engine {
     fn update_frame(&mut self) {
         let mut lock = self.screen_mutex.lock();
         lock.clone_from(&self.screen);
-        std::mem::drop(lock);
         self.blocking.send(RenderBarrier).unwrap();
     }
 
@@ -297,7 +296,7 @@ impl Engine {
             self.k_released.has(keycode),
         )
     }
-
+    /// Get the status of a Mouse Button
     pub fn get_mouse_btn(&self, btn: MouseBtn) -> Input {
         self.mouse.buttons[match btn {
             MouseBtn::Left => 0,
@@ -305,9 +304,13 @@ impl Engine {
             MouseBtn::Middle => 2,
         }]
     }
+
+    /// Get the mouse location (in pixel) on the screen
+    /// Will be defaulted to (0,0) at the start of the program
     pub fn get_mouse_location(&self) -> (u32, u32) {
         self.mouse.pos
     }
+    /// Get the scroll wheel direction (If Any) during the frame
     pub fn get_mouse_wheel(&self) -> MouseWheel {
         self.mouse.wheel
     }

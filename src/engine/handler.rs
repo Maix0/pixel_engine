@@ -139,8 +139,6 @@ impl GlHandler {
                 let size_img = lock.get_size();
                 gl.update_frame(image_data, size_img);
                 gl.update_title(name_lock.to_string());
-                std::mem::drop(lock);
-                std::mem::drop(name_lock);
             }
         });
 
