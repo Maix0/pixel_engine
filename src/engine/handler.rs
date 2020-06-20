@@ -141,7 +141,6 @@ impl GlHandler {
                 gl.update_title(name_lock.to_string());
             }
         });
-
         GlHandler {
             _thread: render_thread,
             name: name_in_struct,

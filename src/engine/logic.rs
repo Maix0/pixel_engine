@@ -282,8 +282,12 @@ impl Engine {
         }
     }
     fn update_frame(&mut self) {
-        let mut lock = self.screen_mutex.lock();
-        lock.clone_from(&self.screen);
+        // put lock inside own scope to be dropped before the `send`
+        // so it won't block on the other thread, blocking everything
+        {
+            let mut lock = self.screen_mutex.lock();
+            lock.clone_from(&self.screen);
+        }
         self.blocking.send(RenderBarrier).unwrap();
     }
 
