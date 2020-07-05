@@ -1,0 +1,21 @@
+[package]
+name = "pixel_engine_backend"
+version = "0.1.0"
+authors = ["maix0 <maix522@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+wasm-web-sys = ["winit/web-sys"]
+vulkan = ["wgpu/vulkan"]
+
+[dependencies]
+wgpu = "0.5.0"
+bytemuck = "1.2.0"
+
+[target.'cfg(target_arch="wasm32")'.dependencies]
+winit = {version = "0.22.2", features = ["web-sys"]}
+
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
+winit = "0.22.2"
