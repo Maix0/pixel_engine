@@ -53,7 +53,7 @@ fn main() {
                 (*selected_pts).0 += 1;
             }
         }
-        if game.get_key(Space).released {
+        if game.get_key(Space).pressed {
             fill = !fill;
         }
         if fill {

@@ -3,7 +3,6 @@ use std::collections::HashSet;
 
 use engine::traits::*;
 fn main() {
-    println!("[WIP] THIS EXAMPLE WON'T WORK AS INTENDED UNTIL REWORK OF INNER EVENT SYSTEM");
     let game = engine::EngineWrapper::new("Mouse".to_owned(), (50, 50, 10));
     let mut clicks: HashSet<(u32, u32)> = HashSet::new();
     let mut old_pos = (0, 0);

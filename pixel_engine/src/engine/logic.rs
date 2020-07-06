@@ -33,7 +33,8 @@ impl EngineWrapper {
         let mut force_exit = false;
         let event_loop = engine.event_loop.unwrap();
         engine.event_loop = None;
-
+        let mut redraw = true;
+        let mut redraw_last_frame = false;
         event_loop.run(move |e, _, control_flow| {
             engine.elapsed = (std::time::SystemTime::now()
                 .duration_since(engine.timer)
@@ -51,105 +52,30 @@ impl EngineWrapper {
                     .set_title(&format!("{} - {}fps", engine.title, engine.frame_count));
                 engine.frame_count = 0;
             }
-            for key in &engine.k_pressed {
-                engine.k_held.insert(*key);
-            }
-            engine.k_pressed.clear();
-            engine.k_released.clear();
-            for i in 0..3 {
-                if engine.mouse.buttons[i].released {
-                    engine.mouse.buttons[i].released = false;
+            if redraw_last_frame {
+                for key in &engine.k_pressed {
+                    engine.k_held.insert(*key);
                 }
-                if engine.mouse.buttons[i].pressed {
-                    engine.mouse.buttons[i].pressed = false;
-                    engine.mouse.buttons[i].held = true;
-                }
-            }
-
-            engine.mouse.wheel = MouseWheel::None;
-
-            for event in {
-                let mut events = Vec::new();
-                if let Event::WindowEvent {
-                    event: e,
-                    window_id,
-                } = e
-                {
-                    if window_id == engine.window.id() {
-                        match e {
-                            WindowEvent::KeyboardInput { input: inp, .. } => {
-                                events.push(Events::Keyboard { inp });
-                            }
-                            WindowEvent::CloseRequested => {
-                                events.push(Events::Close);
-                            }
-                            WindowEvent::CursorMoved { position, .. } => {
-                                let (x, y): (f64, f64) = position.into();
-                                events.push(Events::MouseMove(x, y));
-                            }
-                            WindowEvent::MouseWheel { delta, .. } => match delta {
-                                winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                                    events.push(Events::MouseWheel(if x.abs() > y.abs() {
-                                        if x > 0.0 {
-                                            MouseWheel::Right
-                                        } else if x < 0.0 {
-                                            MouseWheel::Left
-                                        } else {
-                                            MouseWheel::None
-                                        }
-                                    } else if y > 0.0 {
-                                        MouseWheel::Down
-                                    } else if y < 0.0 {
-                                        MouseWheel::Up
-                                    } else {
-                                        MouseWheel::None
-                                    }));
-                                }
-                                winit::event::MouseScrollDelta::PixelDelta(lp) => {
-                                    let (x, y): (f64, f64) = lp.into();
-                                    events.push(Events::MouseWheel(if x.abs() > y.abs() {
-                                        if x > 0.0 {
-                                            MouseWheel::Right
-                                        } else if x < 0.0 {
-                                            MouseWheel::Left
-                                        } else {
-                                            MouseWheel::None
-                                        }
-                                    } else if y > 0.0 {
-                                        MouseWheel::Down
-                                    } else if y < 0.0 {
-                                        MouseWheel::Up
-                                    } else {
-                                        MouseWheel::None
-                                    }));
-                                }
-                            },
-                            WindowEvent::MouseInput { button, state, .. } => {
-                                if std::mem::discriminant(&button)
-                                    != std::mem::discriminant(&winit::event::MouseButton::Other(0))
-                                {
-                                    events.push(Events::MouseClick(
-                                        match button {
-                                            winit::event::MouseButton::Left => MouseBtn::Left,
-                                            winit::event::MouseButton::Right => MouseBtn::Right,
-                                            winit::event::MouseButton::Middle => MouseBtn::Middle,
-                                            winit::event::MouseButton::Other(_) => {
-                                                unreachable!("MouseButton::Other()")
-                                            }
-                                        },
-                                        state == winit::event::ElementState::Pressed,
-                                    ));
-                                }
-                            }
-                            _ => {}
-                        }
+                engine.k_pressed.clear();
+                engine.k_released.clear();
+                for i in 0..3 {
+                    if engine.mouse.buttons[i].released {
+                        engine.mouse.buttons[i].released = false;
+                    }
+                    if engine.mouse.buttons[i].pressed {
+                        engine.mouse.buttons[i].pressed = false;
+                        engine.mouse.buttons[i].held = true;
                     }
                 }
-                events
-            } {
-                // START BLOCK FOR LOOP
-                match event {
-                    Events::Keyboard { inp } => {
+                engine.mouse.wheel = MouseWheel::None;
+                redraw_last_frame = false;
+            }
+            match e {
+                Event::WindowEvent {
+                    event: e,
+                    window_id,
+                } if window_id == engine.window.id() => match e {
+                    WindowEvent::KeyboardInput { input: inp, .. } => {
                         if let Some(k) = inp.virtual_keycode {
                             if inp.state == winit::event::ElementState::Released {
                                 engine.k_pressed.remove(&inputs::Key::from(inp));
@@ -160,60 +86,119 @@ impl EngineWrapper {
                             }
                         }
                     }
-                    Events::Close => {
+                    WindowEvent::CloseRequested => {
                         force_exit = true;
                     }
-                    Events::MouseClick(btn, pressed) => {
-                        if pressed {
-                            engine.mouse.buttons[match btn {
-                                MouseBtn::Left => 0,
-                                MouseBtn::Right => 1,
-                                MouseBtn::Middle => 2,
-                            }]
-                            .pressed = true;
-                        } else {
-                            engine.mouse.buttons[match btn {
-                                MouseBtn::Left => 0,
-                                MouseBtn::Right => 1,
-                                MouseBtn::Middle => 2,
-                            }]
-                            .released = true;
-                            engine.mouse.buttons[match btn {
-                                MouseBtn::Left => 0,
-                                MouseBtn::Right => 1,
-                                MouseBtn::Middle => 2,
-                            }]
-                            .held = false;
-                        }
-                    }
-                    Events::MouseMove(x, y) => {
+                    WindowEvent::CursorMoved { position, .. } => {
+                        let (x, y): (f64, f64) = position.into();
+                        //events.push(Events::MouseMove(x, y));
                         engine.mouse.pos = (
                             (x / engine.size.2 as f64).floor() as u32,
                             (y / engine.size.2 as f64).floor() as u32,
                         );
                     }
-                    Events::MouseWheel(dir) => {
-                        engine.mouse.wheel = dir;
+                    WindowEvent::MouseWheel { delta, .. } => match delta {
+                        winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                            engine.mouse.wheel = if x.abs() > y.abs() {
+                                if x > 0.0 {
+                                    MouseWheel::Right
+                                } else if x < 0.0 {
+                                    MouseWheel::Left
+                                } else {
+                                    MouseWheel::None
+                                }
+                            } else if y > 0.0 {
+                                MouseWheel::Down
+                            } else if y < 0.0 {
+                                MouseWheel::Up
+                            } else {
+                                MouseWheel::None
+                            };
+                        }
+                        winit::event::MouseScrollDelta::PixelDelta(lp) => {
+                            let (x, y): (f64, f64) = lp.into();
+                            engine.mouse.wheel = if x.abs() > y.abs() {
+                                if x > 0.0 {
+                                    MouseWheel::Right
+                                } else if x < 0.0 {
+                                    MouseWheel::Left
+                                } else {
+                                    MouseWheel::None
+                                }
+                            } else if y > 0.0 {
+                                MouseWheel::Down
+                            } else if y < 0.0 {
+                                MouseWheel::Up
+                            } else {
+                                MouseWheel::None
+                            };
+                        }
+                    },
+                    WindowEvent::MouseInput { button, state, .. } => {
+                        if std::mem::discriminant(&button)
+                            != std::mem::discriminant(&winit::event::MouseButton::Other(0))
+                        {
+                            let btn = match button {
+                                winit::event::MouseButton::Left => MouseBtn::Left,
+                                winit::event::MouseButton::Right => MouseBtn::Right,
+                                winit::event::MouseButton::Middle => MouseBtn::Middle,
+                                winit::event::MouseButton::Other(_) => {
+                                    unreachable!("MouseButton::Other()")
+                                }
+                            };
+                            if state == winit::event::ElementState::Pressed {
+                                engine.mouse.buttons[match btn {
+                                    MouseBtn::Left => 0,
+                                    MouseBtn::Right => 1,
+                                    MouseBtn::Middle => 2,
+                                }]
+                                .pressed = true;
+                            } else {
+                                engine.mouse.buttons[match btn {
+                                    MouseBtn::Left => 0,
+                                    MouseBtn::Right => 1,
+                                    MouseBtn::Middle => 2,
+                                }]
+                                .released = true;
+                                engine.mouse.buttons[match btn {
+                                    MouseBtn::Left => 0,
+                                    MouseBtn::Right => 1,
+                                    MouseBtn::Middle => 2,
+                                }]
+                                .held = false;
+                            }
+                        }
                     }
+                    _ => {}
+                },
+                Event::RedrawRequested(_) => {
+                    redraw = true;
                 }
+                Event::MainEventsCleared => {
+                    engine.window.request_redraw();
+                }
+                _ => {}
             }
-
-            let r = (main_func)(&mut engine);
-            if r.is_err() || r.as_ref().ok() == Some(&false) || force_exit {
-                if let Err(e) = r {
-                    if cfg!(debug_assertions) {
-                        println!("Game Stopped:\n{:?}", e);
-                    } else {
-                        println!("Game Stopped:\n{}", e);
+            if redraw {
+                let r = (main_func)(&mut engine);
+                if r.is_err() || r.as_ref().ok() == Some(&false) || force_exit {
+                    if let Err(e) = r {
+                        if cfg!(debug_assertions) {
+                            println!("Game Stopped:\n{:?}", e);
+                        } else {
+                            println!("Game Stopped:\n{}", e);
+                        }
                     }
+                    *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                *control_flow = winit::event_loop::ControlFlow::Exit;
+                engine
+                    .handler
+                    .get_screen_slice()
+                    .clone_from_slice(&engine.screen.get_raw());
+                engine.handler.render();
+                redraw = false;
+                redraw_last_frame = true;
             }
-            engine
-                .handler
-                .get_screen_slice()
-                .clone_from_slice(&engine.screen.get_raw());
-            engine.handler.render();
         });
         #[allow(unreachable_code)]
         {
@@ -224,39 +209,8 @@ impl EngineWrapper {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Events {
-    /// A keyboard input
-    Keyboard {
-        /// The input
-        inp: winit::event::KeyboardInput,
-    },
-    Close,
-    MouseMove(f64, f64),
-    MouseWheel(MouseWheel),
-    /// The bool indicate the type of event
-    /// true => pressed
-    /// false => released
-    MouseClick(MouseBtn, bool),
-}
-
 /**
  *  Bone of the Engine, join everything;
- *  
- *  ## Working window:
- *  ```
- *  use pixel_engine_gl as engine;
- *      let mut game = engine::Engine::new(String::from("A window title"), (10,10,10),&game_logic);
- *      game.run();
- *  }
- *  fn game_logic(game:&mut engine::Engine) {
- *      # return; // This is to avoid the loop and everything during tests
- *      // Code run before everything, only once
- *      while game.new_frame() {
- *          // Your game code, run every frame
- *      }
- *      // Code run after everything
- *  ```
  **/
 pub struct Engine {
     /* FRONTEND */
