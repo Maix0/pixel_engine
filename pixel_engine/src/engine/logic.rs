@@ -36,22 +36,6 @@ impl EngineWrapper {
         let mut redraw = true;
         let mut redraw_last_frame = false;
         event_loop.run(move |e, _, control_flow| {
-            engine.elapsed = (std::time::SystemTime::now()
-                .duration_since(engine.timer)
-                .map_err(|err| err.to_string())
-                .unwrap())
-            .as_secs_f64();
-            // End
-            engine.timer = std::time::SystemTime::now();
-            engine.frame_timer += engine.elapsed;
-            engine.frame_count += 1;
-            if engine.frame_timer > 1.0 {
-                engine.frame_timer -= 1.0;
-                engine
-                    .window
-                    .set_title(&format!("{} - {}fps", engine.title, engine.frame_count));
-                engine.frame_count = 0;
-            }
             if redraw_last_frame {
                 for key in &engine.k_pressed {
                     engine.k_held.insert(*key);
@@ -180,6 +164,22 @@ impl EngineWrapper {
                 _ => {}
             }
             if redraw {
+                engine.elapsed = (std::time::SystemTime::now()
+                    .duration_since(engine.timer)
+                    .map_err(|err| err.to_string())
+                    .unwrap())
+                .as_secs_f64();
+                // End
+                engine.timer = std::time::SystemTime::now();
+                engine.frame_timer += engine.elapsed;
+                engine.frame_count += 1;
+                if engine.frame_timer > 1.0 {
+                    engine.frame_timer -= 1.0;
+                    engine
+                        .window
+                        .set_title(&format!("{} - {}fps", engine.title, engine.frame_count));
+                    engine.frame_count = 0;
+                }
                 let r = (main_func)(&mut engine);
                 if r.is_err() || r.as_ref().ok() == Some(&false) || force_exit {
                     if let Err(e) = r {
