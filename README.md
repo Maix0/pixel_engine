@@ -10,12 +10,13 @@ The end goal is to be able to change the backend with features
 This crate provide Traits to handle the Drawing.
 You only need to implement one trait (The basic Drawing trait) and the Other trait are derived from the main trait
 
-## pixel_engine_core
+## pixel_engine
 This is the core of the projets, It is the main library, aimed to be used by the user.
 This provied and Engine struct
 
-#How to use
-There are plenty of examples in the `examples` folder. You only need to run `cargo run --example=<NAME>` inside the `pixel_engine_core` crate to run them.
+# How to use
+There are plenty of examples in the `examples` folder.
+You only need to run `cargo run --example=<NAME>` inside the `pixel_engine` crate to run them.
 
 ```rust
 extern crate pixel_engine_core as engine;
@@ -41,3 +42,4 @@ fn main() {
 ```
 
 This is the stripped-down code of the `line` example.
+There are some examples that aren't really usefull (like the `input.rs`). They are here to make sure I don't break stuff. 
