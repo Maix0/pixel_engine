@@ -3,11 +3,13 @@ name = "pixel_engine_backend"
 version = "0.1.0"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
-
+license = "MIT"
+description = "An thin layer around wgpu that allow the modification of a texutre displayed on the screen"
+repository = "https://github.com/maix0/pixel_engine"
+exclude = ["Cargo.lock"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-wasm-web-sys = ["winit/web-sys"]
 vulkan = ["wgpu/vulkan"]
 
 [dependencies]
