@@ -1,10 +1,10 @@
-extern crate pixel_engine_gl as engine;
+extern crate pixel_engine as engine;
 extern crate rand;
 use engine::{traits::*, Color};
 fn main() {
     const FIRE_WIDTH: u32 = 250;
     const FIRE_HEIGTH: u32 = 120;
-    let mut game = engine::Engine::new("Doom Fire".to_owned(), (FIRE_WIDTH, FIRE_HEIGTH, 3));
+    let mut game = engine::EngineWrapper::new("Doom Fire".to_owned(), (FIRE_WIDTH, FIRE_HEIGTH, 3));
     let mut bottomline = true;
     let mut spread_center = 0;
     let mut spread_raduis = 0;
@@ -47,7 +47,8 @@ fn main() {
         [0xEF, 0xEF, 0xC7].into(),
         [0xFF, 0xFF, 0xFF].into(),
     ];
-    let mut firepixel = vec![0x00usize; (game.size.0 * game.size.1) as usize];
+    let mut firepixel =
+        vec![0x00usize; (game.get_inner().size.0 * game.get_inner().size.1) as usize];
     fn spread_fire(src: usize, firepixel: &mut Vec<usize>) {
         let pixel = firepixel[src];
         if pixel == 0 {
@@ -69,14 +70,14 @@ fn main() {
             }
         }
     };
-    for i in 0..game.size.0 {
-        firepixel[((game.size.1 - 1) * game.size.0 + i) as usize] = 36;
+    for i in 0..game.get_inner().size.0 {
+        firepixel[((game.get_inner().size.1 - 1) * game.get_inner().size.0 + i) as usize] = 36;
     }
-    game.run(|game: &mut engine::Engine| {
-        if game.get_key(engine::keyboard::Keycodes::Escape).is_some() {
+    game.run(move |game: &mut engine::Engine| {
+        if game.get_key(engine::inputs::Keycodes::Escape).any() {
             return Ok(false);
         }
-        if game.is_pressed(engine::keyboard::Keycodes::Space) {
+        if game.get_key(engine::inputs::Keycodes::Space).pressed {
             bottomline = !bottomline;
             if bottomline {
                 spread_center = (rand::random::<f64>() * FIRE_WIDTH as f64).round() as usize;
@@ -129,8 +130,8 @@ fn main() {
             1,
             engine::Color::WHITE,
             match bottomline {
-                true => String::from("On"),
-                false => String::from("Off"),
+                true => "On",
+                false => "Off",
             },
         );
         Ok(true)

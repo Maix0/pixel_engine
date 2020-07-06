@@ -1,14 +1,14 @@
-extern crate pixel_engine_gl as engine;
+extern crate pixel_engine as engine;
 extern crate rand;
 
-use engine::keyboard::Keycodes::Escape;
+use engine::inputs::Keycodes::Escape;
 use engine::traits::*;
 fn main() {
-    let mut game = engine::Engine::new("Random".to_owned(), (256, 240, 2));
+    let game = engine::EngineWrapper::new("Random".to_owned(), (256, 240, 2));
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    game.run(|game: &mut engine::Engine| {
-        if game.get_key(Escape).is_some() {
+    game.run(move |game: &mut engine::Engine| {
+        if game.get_key(Escape).any() {
             return Ok(false);
         }
         for x in 0..game.size.0 {

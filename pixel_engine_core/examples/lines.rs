@@ -1,7 +1,7 @@
-extern crate pixel_engine_core as engine;
+extern crate pixel_engine as engine;
 use engine::traits::*;
 fn main() {
-    let game = engine::EngineWrapper::new("Text".to_owned(), (25, 25, 20));
+    let game = engine::EngineWrapper::new("Lines".to_owned(), (25, 25, 20));
     let mut start = vec![0, 0];
     let mut end = vec![5u32, 5u32];
     let mut toggle = false;

@@ -1,7 +1,8 @@
-extern crate pixel_engine_gl as engine;
+extern crate pixel_engine as engine;
 use engine::traits::*;
 fn main() {
-    let mut game = engine::Engine::new("Triangle".to_string(), (550, 550, 1));
+    let mut game_wrapper = engine::EngineWrapper::new("Triangle".to_string(), (550, 550, 1));
+    let game = game_wrapper.get_inner();
     fn dist(p1: (i32, i32), p2: (i32, i32)) -> f64 {
         return (((p2.0 - p1.0).pow(2) + (p2.1 - p1.1).pow(2)) as f64).sqrt();
     };
@@ -45,5 +46,5 @@ fn main() {
             }
         }
     }
-    game.run(|_| Ok(true));
+    game_wrapper.run(|_| Ok(true));
 }

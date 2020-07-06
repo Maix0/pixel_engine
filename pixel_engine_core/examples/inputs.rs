@@ -1,17 +1,16 @@
-extern crate pixel_engine_gl as engine;
+extern crate pixel_engine as engine;
 
-use engine::keyboard::Keycodes;
-use engine::traits::*;
+use engine::inputs::Keycodes;
 fn main() {
-    let mut game = engine::Engine::new("Input".to_owned(), (50, 50, 10));
+    let game = engine::EngineWrapper::new("Input".to_owned(), (50, 50, 10));
     game.run(|game: &mut engine::Engine| {
-        if game.is_pressed(Keycodes::Space) {
+        if game.get_key(Keycodes::Space).pressed {
             println!("[ PRESS ]")
         }
-        if game.is_released(Keycodes::Space) {
+        if game.get_key(Keycodes::Space).released {
             println!("[RELEASE]")
         }
-        if game.is_held(Keycodes::Space) {
+        if game.get_key(Keycodes::Space).held {
             println!("[ HELD  ]")
         }
         Ok(true)

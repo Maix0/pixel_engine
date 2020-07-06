@@ -1,24 +1,25 @@
-extern crate pixel_engine_gl as engine;
+extern crate pixel_engine as engine;
 use engine::traits::*;
 fn main() {
-    let mut game = engine::Engine::new("Path".to_owned(), (500, 500, 1));
+    println!("[WIP] THIS EXAMPLE IS NOT WORKING AS INTENDED");
+    let game = engine::EngineWrapper::new("Path".to_owned(), (500, 500, 1));
     let mut pw = PathView::new(PathBuf::from("."));
-    use engine::keyboard::Keycodes::{Down, Escape, Left, Right, Up};
-    game.run(|game: &mut engine::Engine| {
+    use engine::inputs::Keycodes::{Down, Escape, Left, Right, Up};
+    game.run(move |game: &mut engine::Engine| {
         game.screen.clear([0x00, 0x00, 0x00].into());
-        if game.is_pressed(Escape) {
+        if game.get_key(Escape).pressed {
             return Ok(false);
         }
-        if game.is_pressed(Up) {
+        if game.get_key(Up).pressed {
             pw.select_prev();
         }
-        if game.is_pressed(Down) {
+        if game.get_key(Down).pressed {
             pw.select_next();
         }
-        if game.is_pressed(Left) {
+        if game.get_key(Left).pressed {
             pw.goto_parent();
         }
-        if game.is_pressed(Right) {
+        if game.get_key(Right).pressed {
             pw.goto_select();
         }
         let current_filename = match pw.current_path.file_name() {
@@ -26,7 +27,7 @@ fn main() {
             None => String::from("."),
         };
         game.screen
-            .draw_text(0, 0, 2, [1.0, 1.0, 1.0].into(), current_filename);
+            .draw_text(0, 0, 2, [1.0, 1.0, 1.0].into(), &current_filename);
         for i in 0..pw.child.len() {
             if i == pw.child_index {
                 //game.screen.draw_line()
@@ -36,8 +37,8 @@ fn main() {
                     2,
                     [0.0, 1.0, 1.0].into(),
                     match &pw.get_child_name()[i] {
-                        Some(name) => name.to_string(),
-                        None => String::from(""),
+                        Some(name) => name,
+                        None => "",
                     },
                 );
             } else {
@@ -47,8 +48,8 @@ fn main() {
                     2,
                     [1.0, 1.0, 1.0].into(),
                     match &pw.get_child_name()[i] {
-                        Some(name) => name.to_string(),
-                        None => String::from(""),
+                        Some(name) => name,
+                        None => "",
                     },
                 );
             }

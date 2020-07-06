@@ -1,8 +1,9 @@
-extern crate pixel_engine_gl as engine;
+extern crate pixel_engine as engine;
 use engine::traits::*;
 
 fn main() {
-    let mut game = engine::Engine::new("Colors".to_owned(), (500, 500, 1));
+    let mut game_wrapper = engine::EngineWrapper::new("Colors".to_owned(), (500, 500, 1));
+    let game = game_wrapper.get_inner();
     for x in 0..game.size.0 {
         for y in 0..game.size.1 {
             let red: f32 = if x < (game.size.0 - 1) / 2 {
@@ -21,5 +22,5 @@ fn main() {
             game.screen.draw(x, y, [red, green, blue].into());
         }
     }
-    game.run(|_| Ok(true));
+    game_wrapper.run(|_| Ok(true));
 }
