@@ -1,0 +1,13 @@
+[package]
+name = "fake_mode7"
+version = "0.1.0"
+authors = ["maix0 <maix522@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pixel_engine = "0.3.1"
+
+[patch.crates-io]
+pixel_engine = {path = "../../pixel_engine"}
