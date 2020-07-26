@@ -7,14 +7,16 @@ pub struct Texture {
 }
 
 impl Texture {
+    /// # Panic
+    ///
+    /// If the given bytes length isn't equal to the `size.0 * size.1 * 4`
     pub fn from_bytes(
         device: &wgpu::Device,
         img: (&[u8], (u32, u32)),
-        label: Option<&str>,
-    ) -> Result<(Self, wgpu::CommandBuffer), ()> {
+    ) -> (Self, wgpu::CommandBuffer) {
         let (rgba, dimensions) = img;
         if rgba.len() as u32 != dimensions.0 * dimensions.1 * 4 {
-            return Err(());
+            panic!("Data given isn't at the given size")
         }
 
         let size = wgpu::Extent3d {
@@ -30,12 +32,13 @@ impl Texture {
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
-            label,
+            label: None,
         });
 
         let buffer = device.create_buffer_with_data(&rgba, wgpu::BufferUsage::all());
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label });
+        let mut encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         encoder.copy_buffer_to_texture(
             wgpu::BufferCopyView {
@@ -68,7 +71,7 @@ impl Texture {
             compare: wgpu::CompareFunction::Always,
         });
 
-        Ok((
+        (
             Self {
                 texture,
                 view,
@@ -77,14 +80,15 @@ impl Texture {
                 size,
             },
             cmd_buffer,
-        ))
+        )
     }
-    pub fn update(&self, device: &wgpu::Device) -> wgpu::CommandBuffer {
+    pub fn update(&self, device: &wgpu::Device, data: &[u8]) -> wgpu::CommandBuffer {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let buffer = device.create_buffer_with_data(data, wgpu::BufferUsage::COPY_SRC);
         encoder.copy_buffer_to_texture(
             wgpu::BufferCopyView {
-                buffer: &self.buffer,
+                buffer: &buffer,
                 offset: 0,
                 bytes_per_row: 4 * self.size.width,
                 rows_per_image: self.size.height,

@@ -1,7 +1,10 @@
 //use super::handler::GlHandler;
+use super::decals;
 use super::inputs::{self, Input, KeySet, Mouse, MouseBtn, MouseWheel};
-use super::screen::Screen;
+use super::screen::DrawData;
+use super::Sprite;
 use futures::executor::block_on;
+
 use px_backend::winit::{
     self,
     event::{Event, WindowEvent},
@@ -11,14 +14,25 @@ use px_backend::winit::{
 #[derive(Debug)]
 pub struct EngineWrapper(Option<Engine>);
 
+impl std::ops::Deref for EngineWrapper {
+    type Target = Engine;
+    fn deref(&self) -> &Self::Target {
+        &self.0.as_ref().expect("Pannic while deref EngineWrapper")
+    }
+}
+
+impl std::ops::DerefMut for EngineWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+            .as_mut()
+            .expect("Panic while deref Mut EngineWrapper")
+    }
+}
+
 impl EngineWrapper {
     /// Create the Engine and the Wrapper
     pub fn new(title: String, size: (u32, u32, u32)) -> Self {
         Self(Some(Engine::new(title, size)))
-    }
-    /// Get a Referance to the inner Engine
-    pub fn get_inner(&mut self) -> &mut Engine {
-        self.0.as_mut().unwrap()
     }
     /// The core of your program,
     ///
@@ -191,11 +205,7 @@ impl EngineWrapper {
                     }
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                engine
-                    .handler
-                    .get_screen_slice()
-                    .clone_from_slice(&engine.screen.get_raw());
-                engine.handler.render();
+                engine.handler.render(&engine.screen.get_raw());
                 redraw = false;
                 redraw_last_frame = true;
             }
@@ -227,15 +237,15 @@ pub struct Engine {
     frame_timer: f64,
 
     /* BACKEND */
-    /// Game's screen manager, let you draw on the screen
-    pub screen: Screen,
-    handler: px_backend::Context,
+    pub(crate) screen: Sprite,
+    pub(crate) handler: px_backend::Context,
     k_pressed: std::collections::HashSet<inputs::Key>,
     k_held: std::collections::HashSet<inputs::Key>,
     k_released: std::collections::HashSet<inputs::Key>,
     mouse: Mouse,
     event_loop: Option<winit::event_loop::EventLoop<()>>,
     window: winit::window::Window,
+    pub(crate) draw_data: DrawData,
 }
 impl std::fmt::Debug for Engine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -249,7 +259,7 @@ impl std::fmt::Debug for Engine {
 }
 
 impl Engine {
-    /// Create a new [Engine]
+    /// Create a new [`Engine`]
     fn new(title: String, size: (u32, u32, u32)) -> Self {
         let event_loop = winit::event_loop::EventLoop::new();
         let window = winit::window::WindowBuilder::new()
@@ -261,7 +271,8 @@ impl Engine {
             .with_resizable(false)
             .build(&event_loop)
             .expect("Error when constructing window");
-
+        window.set_visible(false);
+        let handler = block_on(px_backend::Context::new(&window, size));
         Engine {
             /* FRONTEND */
             size,
@@ -273,16 +284,27 @@ impl Engine {
             frame_timer: 0f64,
             elapsed: 0f64,
             /* BACKEND */
-            handler: block_on(px_backend::Context::new(&window, size)),
-            screen: Screen::new((size.0, size.1)),
+            handler,
+            screen: Sprite::new(size.0, size.1),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
             mouse: Mouse::new(),
-            window,
+            window: {
+                window.set_visible(true);
+                window
+            },
             event_loop: Some(event_loop),
+            draw_data: DrawData::new(),
         }
     }
+
+    /// Return the current Target size in pixel
+    pub fn size(&self) -> (u32, u32) {
+        use px_draw::traits::ScreenTrait;
+        self.get_size()
+    }
+
     /// Get The status of a key
     #[inline]
     pub fn get_key(&self, keycode: inputs::Keycodes) -> Input {
@@ -313,5 +335,15 @@ impl Engine {
     /// Get all Keys pressed during the last frame
     pub fn get_pressed(&self) -> std::collections::HashSet<inputs::Keycodes> {
         self.k_pressed.clone().iter().map(|k| k.key).collect()
+    }
+
+    /// Create a GPU version of [`Sprite`]
+    pub fn create_decal(&mut self, sprite: &Sprite) -> decals::Decal {
+        decals::Decal::new(&mut self.handler, sprite)
+    }
+
+    /// Tell the GPU to destroy everything related to that [`Decal`]
+    pub fn destroy_decal(&mut self, decal: decals::Decal) {
+        decal.0.destroy(&mut self.handler);
     }
 }

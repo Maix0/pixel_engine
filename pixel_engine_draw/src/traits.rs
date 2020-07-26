@@ -1,5 +1,5 @@
 use super::graphics::{Color, PixelMode, Sprite};
-
+use super::vector2::Vu2d;
 macro_rules! impl_trait {
     ($trait:ident) => {
         impl<T: ScreenTrait> $trait for T {}
@@ -9,16 +9,16 @@ macro_rules! impl_trait {
 ///All that is needed to draw one pixel one the target
 pub trait ScreenTrait {
     /// Get the size of the target
-    fn get_size(&mut self) -> (usize, usize);
+    fn get_size(&self) -> (u32, u32);
     /// Get The textsheet (A [`Sprite`])
     fn get_textsheet(&self) -> &Sprite;
     /// Clear the Screen With the given [`Color`]
     fn clear(&mut self, col: Color);
     /// Set the pixel data at the given coordinates to the given Color
     /// Will use the current [`PixelMode`]
-    fn draw(&mut self, x: u32, y: u32, col: Color);
+    fn draw<P: Into<Vu2d>>(&mut self, pos: P, col: Color);
     /// Get the Pixel Data at the given coordinates
-    fn get_pixel(&self, x: u32, y: u32) -> Color;
+    fn get_pixel<P: Into<Vu2d>>(&self, pos: P) -> Color;
     /// Return the [`PixelMode`]
     fn get_pixel_mode(&self) -> PixelMode;
     /// Set the [`PixelMode`]
@@ -40,7 +40,8 @@ pub trait ShapesTrait: ScreenTrait {
     /// the width
     /// This will handle `\n` treating it as a new line, but wont do any newline stuff if it is
     /// drawing out of the screen
-    fn draw_text(&mut self, x: u32, y: u32, scale: u32, col: Color, text: &str) {
+    fn draw_text<P: Into<Vu2d>>(&mut self, pos: P, scale: u32, col: Color, text: &str) {
+        let Vu2d { x, y } = pos.into();
         let mut sx = 0;
         let mut sy = 0;
         for chr in text.chars() {
@@ -60,8 +61,7 @@ pub trait ShapesTrait: ScreenTrait {
                                 for is in 0..=scale {
                                     for js in 0..=scale {
                                         self.draw(
-                                            x + sx + (i * scale) + is,
-                                            y + sy + (j * scale) + js,
+                                            (x + sx + (i * scale) + is, y + sy + (j * scale) + js),
                                             col,
                                         )
                                     }
@@ -73,7 +73,7 @@ pub trait ShapesTrait: ScreenTrait {
                     for i in 0..8 {
                         for j in 0..8 {
                             if self.get_textsheet().get_pixel(i + ox * 8, j + oy * 8).r > 0 {
-                                self.draw(x + sx + i, y + sy + j, col)
+                                self.draw((x + sx + i, y + sy + j), col)
                             }
                         }
                     }
@@ -85,40 +85,40 @@ pub trait ShapesTrait: ScreenTrait {
 
     /// Draw a line between two points,
     /// You don't need to do anything with the points for it to work, it will swap them it needed.
-    fn draw_line(&mut self, p1: (u32, u32), p2: (u32, u32), col: Color) {
+    fn draw_line<P: Into<Vu2d>>(&mut self, p1: P, p2: P, col: Color) {
         /* OLD Implementation by me
-         * let (p1, p2) = if p1.0 < p2.0 { (p1, p2) } else { (p2, p1) };
-        if p1.0 == p2.0 {
-            let iter = if p1.1 < p2.1 {
-                p1.1..=(p2.1)
+         * let (p1, p2) = if p1.x < p2.x { (p1, p2) } else { (p2, p1) };
+        if p1.x == p2.x {
+            let iter = if p1.y < p2.y {
+                p1.y..=(p2.y)
             } else {
-                p2.1..=(p1.1)
+                p2.y..=(p1.y)
             };
             for y in iter {
-                self.draw(p1.0, y, col);
+                self.draw(p1.x, y, col);
             }
         } else {
-            let a = (p1.1 as f32 - p2.1 as f32) / (p1.0 as f32 - p2.0 as f32);
-            let b = p1.1 as f32 - (a * p1.0 as f32);
+            let a = (p1.y as f32 - p2.y as f32) / (p1.x as f32 - p2.x as f32);
+            let b = p1.y as f32 - (a * p1.x as f32);
             /*println!(
                 "START {:?} || END: {:?} || a = {:.2} = {:.2}/{:.2} || b = {:.2}",
                 p1,
                 p2,
                 a,
-                (p1.1 as f32 - p2.1 as f32),
-                (p1.0 as f32 - p2.0 as f32),
+                (p1.y as f32 - p2.y as f32),
+                (p1.x as f32 - p2.x as f32),
                 b
             );*/
-            if -1.0 <= a && a <= 1.0 {
-                for x in p1.0..=(p2.0) {
+            if -1.x <= a && a <= 1.x {
+                for x in p1.x..=(p2.x) {
                     let y = a * x as f32 + b;
                     self.draw(x, y.round() as u32, col);
                 }
-            } else if a > 1.0 || a < -1.0 {
-                let iter = if p1.1 < p2.1 {
-                    p1.1..=p2.1
+            } else if a > 1.x || a < -1.x {
+                let iter = if p1.y < p2.y {
+                    p1.y..=p2.y
                 } else {
-                    p2.1..=p1.1
+                    p2.y..=p1.y
                 };
                 for y in iter {
                     let x = ((y as f32 - b) / a).round() as u32;
@@ -126,27 +126,29 @@ pub trait ShapesTrait: ScreenTrait {
                 }
             }
         }*/
-        if p1.0 == p2.0 {
+        let p1: Vu2d = p1.into();
+        let p2: Vu2d = p2.into();
+        if p1.x == p2.x {
             // VERTICAL LINE
-            for y in if p2.1 > p1.1 {
-                p1.1..=p2.1
+            for y in if p2.y > p1.y {
+                p1.y..=p2.y
             } else {
-                p2.1..=p1.1
+                p2.y..=p1.y
             } {
-                self.draw(p1.0, y, col);
+                self.draw((p1.x, y), col);
             }
-        } else if p1.1 == p2.1 {
+        } else if p1.y == p2.y {
             // HORIZONTAL LINE
-            for x in if p2.0 > p1.0 {
-                p1.0..=p2.0
+            for x in if p2.x > p1.x {
+                p1.x..=p2.x
             } else {
-                p2.0..=p1.0
+                p2.x..=p1.x
             } {
-                self.draw(x, p1.1, col);
+                self.draw((x, p1.y), col);
             }
         } else {
-            let (mut x0, mut y0) = (p1.0 as i64, p1.1 as i64);
-            let (mut x1, mut y1) = (p2.0 as i64, p2.1 as i64);
+            let (mut x0, mut y0) = (p1.x as i64, p1.y as i64);
+            let (mut x1, mut y1) = (p2.x as i64, p2.y as i64);
             if (y1 - y0).abs() < (x1 - x0).abs() {
                 if x0 > x1 {
                     std::mem::swap(&mut x0, &mut x1);
@@ -164,7 +166,7 @@ pub trait ShapesTrait: ScreenTrait {
 
                 for x in x0..x1 {
                     if x >= 0 && y >= 0 {
-                        self.draw(x as u32, y as u32, col);
+                        self.draw((x as u32, y as u32), col);
                     }
                     if d > 0 {
                         y += yi;
@@ -189,7 +191,7 @@ pub trait ShapesTrait: ScreenTrait {
 
                 for y in y0..=y1 {
                     if x >= 0 && y >= 0 {
-                        self.draw(x as u32, y as u32, col);
+                        self.draw((x as u32, y as u32), col);
                     }
                     if d > 0 {
                         x += xi;
@@ -202,7 +204,9 @@ pub trait ShapesTrait: ScreenTrait {
     }
     /// Draw a rectangle with the top left corner at `(x, y)`
     /// and the bottom right corner at `(x + w, y + h)` (both inclusive)
-    fn draw_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
+    fn draw_rect<P: Into<Vu2d>>(&mut self, pos: P, size: P, col: Color) {
+        let Vu2d { x, y } = pos.into();
+        let Vu2d { x: w, y: h } = size.into() - Vu2d { x: 1, y: 1 };
         self.draw_line((x, y), (x + w, y), col);
         self.draw_line((x + w, y), (x + w, y + h), col);
         self.draw_line((x + w, y + h), (x, y + h), col);
@@ -211,14 +215,17 @@ pub trait ShapesTrait: ScreenTrait {
 
     /// Fill a rectangle with the top left corner at `(x, y)`
     /// and the bottom right corner at `(x + w, y + h)` (both inclusive)
-    fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, col: Color) {
-        for nx in x..=(x + w) {
+    fn fill_rect<P: Into<Vu2d>>(&mut self, pos: P, size: P, col: Color) {
+        let Vu2d { x, y } = pos.into();
+        let Vu2d { x: w, y: h } = size.into();
+        for nx in x..(x + w) {
             self.draw_line((nx, y), (nx, y + h), col);
         }
     }
 
     /// Draw a circle with center `(x, y)` and raduis `r`
-    fn draw_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
+    fn draw_circle<P: Into<Vu2d>>(&mut self, pos: P, r: u32, col: Color) {
+        let Vu2d { x, y } = pos.into();
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
@@ -228,15 +235,15 @@ pub trait ShapesTrait: ScreenTrait {
             return;
         }
         while y0 >= x0 {
-            self.draw((x + x0) as u32, (y - y0) as u32, col);
-            self.draw((x + y0) as u32, (y - x0) as u32, col);
-            self.draw((x + y0) as u32, (y + x0) as u32, col);
-            self.draw((x + x0) as u32, (y + y0) as u32, col);
+            self.draw(((x + x0) as u32, (y - y0) as u32), col);
+            self.draw(((x + y0) as u32, (y - x0) as u32), col);
+            self.draw(((x + y0) as u32, (y + x0) as u32), col);
+            self.draw(((x + x0) as u32, (y + y0) as u32), col);
 
-            self.draw((x - x0) as u32, (y + y0) as u32, col);
-            self.draw((x - y0) as u32, (y + x0) as u32, col);
-            self.draw((x - y0) as u32, (y - x0) as u32, col);
-            self.draw((x - x0) as u32, (y - y0) as u32, col);
+            self.draw(((x - x0) as u32, (y + y0) as u32), col);
+            self.draw(((x - y0) as u32, (y + x0) as u32), col);
+            self.draw(((x - y0) as u32, (y - x0) as u32), col);
+            self.draw(((x - x0) as u32, (y - y0) as u32), col);
 
             x0 += 1;
             if d < 0 {
@@ -249,8 +256,9 @@ pub trait ShapesTrait: ScreenTrait {
     }
 
     /// Fill a circle with center `(x, y)` and raduis `r`
-    fn fill_circle(&mut self, x: u32, y: u32, r: u32, col: Color) {
+    fn fill_circle<P: Into<Vu2d>>(&mut self, pos: P, r: u32, col: Color) {
         use std::cmp::max;
+        let Vu2d { x, y } = pos.into();
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
@@ -291,18 +299,25 @@ pub trait ShapesTrait: ScreenTrait {
     }
 
     /// Draw the edges of a triangle between the three points
-    fn draw_triangle(&mut self, pts1: (u32, u32), pts2: (u32, u32), pts3: (u32, u32), col: Color) {
+    fn draw_triangle<P: Into<Vu2d>>(&mut self, pts1: P, pts2: P, pts3: P, col: Color) {
+        let pts1: Vu2d = pts1.into();
+        let pts2: Vu2d = pts2.into();
+        let pts3: Vu2d = pts3.into();
         self.draw_line(pts1, pts2, col);
         self.draw_line(pts1, pts3, col);
         self.draw_line(pts2, pts3, col);
     }
 
     /// Fill the given triangle
-    fn fill_triangle(&mut self, pts1: (u32, u32), pts2: (u32, u32), pts3: (u32, u32), col: Color) {
+    fn fill_triangle<P: Into<Vu2d>>(&mut self, pts1: P, pts2: P, pts3: P, col: Color) {
+        let pts1: Vu2d = pts1.into();
+        let pts2: Vu2d = pts2.into();
+        let pts3: Vu2d = pts3.into();
         self.draw_triangle(pts1, pts2, pts3, col);
-        let pts1 = (pts1.0 as i64, pts1.1 as i64);
-        let pts2 = (pts2.0 as i64, pts2.1 as i64);
-        let pts3 = (pts3.0 as i64, pts3.1 as i64);
+
+        let pts1 = (pts1.x as i64, pts1.y as i64);
+        let pts2 = (pts2.x as i64, pts2.y as i64);
+        let pts3 = (pts3.x as i64, pts3.y as i64);
         let centroid = (
             ((pts1.0 + pts2.0 + pts3.0) as f32 / 3f32),
             ((pts1.1 + pts2.1 + pts3.1) as f32 / 3f32),
@@ -378,7 +393,7 @@ pub trait ShapesTrait: ScreenTrait {
                     && ((lines.1).0 * x + (lines.1).1 * y - (lines.1).2) * l_mul.1 >= 0
                     && ((lines.2).0 * x + (lines.2).1 * y - (lines.2).2) * l_mul.2 >= 0
                 {
-                    self.draw(x as u32, y as u32, col)
+                    self.draw((x as u32, y as u32), col)
                 }
             }
         }
@@ -390,7 +405,14 @@ pub trait SpriteTrait: ScreenTrait {
     /// the flip arguement will allow fliping of the axis
     /// flip: (horizontal, vertical)
     /// scale is the scale of the result (must be >= 1)
-    fn draw_sprite(&mut self, x: u32, y: u32, scale: u32, sprite: &Sprite, flip: (bool, bool)) {
+    fn draw_sprite<P: Into<Vu2d>>(
+        &mut self,
+        pos: P,
+        scale: u32,
+        sprite: &Sprite,
+        flip: (bool, bool),
+    ) {
+        let Vu2d { x, y } = pos.into();
         let (mut fxs, mut fxm) = (0i32, 1i32);
         let (mut fys, mut fym) = (0i32, 1i32);
         let mut fx: i32;
@@ -411,8 +433,7 @@ pub trait SpriteTrait: ScreenTrait {
                     for is in 0..scale {
                         for js in 0..scale {
                             self.draw(
-                                x + i * scale + is,
-                                y + j * scale + js,
+                                (x + i * scale + is, y + j * scale + js),
                                 sprite.get_pixel(fx as u32, fy as u32),
                             );
                         }
@@ -426,7 +447,7 @@ pub trait SpriteTrait: ScreenTrait {
             for i in 0..sprite.width {
                 fy = fys;
                 for j in 0..sprite.height {
-                    self.draw(x + i, y + j, sprite.get_pixel(fx as u32, fy as u32));
+                    self.draw((x + i, y + j), sprite.get_pixel(fx as u32, fy as u32));
                     fy += fym;
                 }
                 fx += fxm;
@@ -438,18 +459,18 @@ pub trait SpriteTrait: ScreenTrait {
     /// `o` is the Top left corner of the Sprite Chunk
     /// and `size` is the `(width, height)` of the chunk
     /// `flip` and `scale` is the same as [`SpriteTrait::draw_sprite()`]
-    fn draw_partial_sprite(
+    fn draw_partial_sprite<P: Into<Vu2d>>(
         &mut self,
-        coords: (u32, u32),
+        coords: P,
         sprite: &Sprite,
-        o: (u32, u32),
-        size: (u32, u32),
+        o: P,
+        size: P,
         scale: u32,
         flip: (bool, bool),
     ) {
-        let (x, y) = coords;
-        let (ox, oy) = o;
-        let (w, h) = size;
+        let Vu2d { x, y } = coords.into();
+        let Vu2d { x: ox, y: oy } = o.into();
+        let Vu2d { x: w, y: h } = size.into();
 
         let (mut fxs, mut fxm) = (0i32, 1i32);
         let (mut fys, mut fym) = (0i32, 1i32);
@@ -472,8 +493,7 @@ pub trait SpriteTrait: ScreenTrait {
                     for is in 0..scale {
                         for js in 0..scale {
                             self.draw(
-                                x + i * scale + is,
-                                y + j * scale + js,
+                                (x + i * scale + is, y + j * scale + js),
                                 sprite.get_pixel(fx as u32 + ox, fy as u32 + oy),
                             );
                         }
@@ -488,8 +508,7 @@ pub trait SpriteTrait: ScreenTrait {
                 fy = fys;
                 for j in 0..h {
                     self.draw(
-                        x + i,
-                        y + j,
+                        (x + i, y + j),
                         sprite.get_pixel(fx as u32 + ox, fy as u32 + oy),
                     );
                     fy += fym;

@@ -1,18 +1,23 @@
 pub use winit;
 use winit::window::Window;
+pub mod decals;
 mod texture;
 
+pub trait VertexTrait {
+    fn desc<'a>() -> wgpu::VertexBufferDescriptor<'a>;
+}
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
-struct Vertex {
+pub(crate) struct Vertex {
     position: [f32; 3],
-    tex_coords: [f32; 2],
+    // UV + q for warped Decal
+    tex_coords: [f32; 3],
 }
 
 unsafe impl bytemuck::Pod for Vertex {}
 unsafe impl bytemuck::Zeroable for Vertex {}
 
-impl Vertex {
+impl VertexTrait for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferDescriptor<'a> {
         use std::mem;
         wgpu::VertexBufferDescriptor {
@@ -27,24 +32,26 @@ impl Vertex {
                 wgpu::VertexAttributeDescriptor {
                     offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float2,
+                    format: wgpu::VertexFormat::Float3,
                 },
             ],
         }
     }
 }
 
+pub const VERTEX_BUFFER_SIZE: u64 = std::mem::size_of::<[Vertex; 4]>() as u64;
+
 const CORNER: f32 = 1f32;
 #[rustfmt::skip]
 const VERTICES: &[Vertex] = &[
-    Vertex { position: [-CORNER, CORNER, 0.0], tex_coords: [0.0, 0.0] }, // A
-    Vertex { position: [-CORNER,-CORNER, 0.0], tex_coords: [0.0, 1.0] }, // B
-    Vertex { position: [ CORNER,-CORNER, 0.0], tex_coords: [1.0, 1.0] }, // C
-    Vertex { position: [ CORNER, CORNER, 0.0], tex_coords: [1.0, 0.0] }, // D
+    Vertex { position: [-CORNER, CORNER, 0.0], tex_coords: [0.0, 0.0, 1.0] }, // A
+    Vertex { position: [-CORNER,-CORNER, 0.0], tex_coords: [0.0, 1.0, 1.0] }, // B
+    Vertex { position: [ CORNER,-CORNER, 0.0], tex_coords: [1.0, 1.0, 1.0] }, // C
+    Vertex { position: [ CORNER, CORNER, 0.0], tex_coords: [1.0, 0.0, 1.0] }, // D
 ];
 
 #[rustfmt::skip]
-const INDICES: &[u16] = &[
+pub(crate) const INDICES: &[u16] = &[
     0, 1, 3,
     1, 2, 3,
 ];
@@ -62,7 +69,8 @@ pub struct Context {
     num_indices: u32,
     main_texture: texture::Texture,
     main_bind_group: wgpu::BindGroup,
-    screen_buffer: wgpu::BufferWriteMapping,
+    bind_group_layout: wgpu::BindGroupLayout,
+    dcm: decals::DecalContextManager,
 }
 
 impl Context {
@@ -120,10 +128,7 @@ impl Context {
                 &vec![0, 0, 0, 255].repeat((px_size.0 * px_size.1) as usize),
                 (px_size.0, px_size.1),
             ),
-            Some("main_texture"),
-        )
-        .expect("Error when creating main Texture");
-
+        );
         queue.submit(&[cmd_buffer]);
 
         let texture_bind_group_layout =
@@ -178,7 +183,7 @@ impl Context {
             }),
             rasterization_state: Some(wgpu::RasterizationStateDescriptor {
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: wgpu::CullMode::Back,
+                cull_mode: wgpu::CullMode::None,
                 depth_bias: 0,
                 depth_bias_slope_scale: 0.0,
                 depth_bias_clamp: 0.0,
@@ -199,20 +204,58 @@ impl Context {
             sample_mask: !0,
             alpha_to_coverage_enabled: false,
         });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
 
-        let vertex_buffer = device
-            .create_buffer_with_data(bytemuck::cast_slice(VERTICES), wgpu::BufferUsage::VERTEX);
-        let index_buffer =
-            device.create_buffer_with_data(bytemuck::cast_slice(INDICES), wgpu::BufferUsage::INDEX);
+        let vertex_buffer = {
+            let b = device.create_buffer(&wgpu::BufferDescriptor {
+                label: None,
+                size: VERTEX_BUFFER_SIZE,
+                usage: wgpu::BufferUsage::COPY_DST
+                    | wgpu::BufferUsage::VERTEX
+                    | wgpu::BufferUsage::COPY_SRC,
+            });
+            encoder.copy_buffer_to_buffer(
+                &device.create_buffer_with_data(
+                    bytemuck::cast_slice(VERTICES),
+                    wgpu::BufferUsage::VERTEX
+                        | wgpu::BufferUsage::COPY_DST
+                        | wgpu::BufferUsage::COPY_SRC,
+                ),
+                0,
+                &b,
+                0,
+                VERTEX_BUFFER_SIZE,
+            );
+            b
+        };
+        let index_buffer = {
+            let b = device.create_buffer(&wgpu::BufferDescriptor {
+                label: None,
+                size: std::mem::size_of::<[u16; 6]>() as u64,
+                usage: wgpu::BufferUsage::COPY_DST
+                    | wgpu::BufferUsage::INDEX
+                    | wgpu::BufferUsage::COPY_SRC,
+            });
+            encoder.copy_buffer_to_buffer(
+                &device.create_buffer_with_data(
+                    bytemuck::cast_slice(INDICES),
+                    wgpu::BufferUsage::INDEX
+                        | wgpu::BufferUsage::COPY_DST
+                        | wgpu::BufferUsage::COPY_SRC,
+                ),
+                0,
+                &b,
+                0,
+                std::mem::size_of::<[u16; 6]>() as u64,
+            );
+            b
+        };
+        queue.submit(&[encoder.finish()]);
         let num_indices = INDICES.len() as u32;
-        let screen_buffer = main_texture.buffer.map_write(
-            0,
-            (main_texture.size.width * main_texture.size.height * 4) as wgpu::BufferAddress,
-        );
-        device.poll(wgpu::Maintain::Poll);
-        let screen_buffer = screen_buffer
-            .await
-            .expect("Error when getting screen buffer");
+        let (dcm, cmd) = decals::DecalContextManager::new(&device);
+        queue.submit(&[cmd]);
         Self {
             surface,
             device,
@@ -225,51 +268,60 @@ impl Context {
             num_indices,
             main_bind_group,
             main_texture,
-            screen_buffer,
+            bind_group_layout: texture_bind_group_layout,
+            dcm,
         }
     }
-    pub fn render(&mut self) {
-        self.queue.submit(&[self.main_texture.update(&self.device)]);
-        let frame = self
-            .swap_chain
-            .get_next_texture()
-            .expect("Timeout getting texture");
+    pub fn render(&mut self, data: &[u8]) {
+        self.queue
+            .submit(&[self.main_texture.update(&self.device, data)]);
+        if let Ok(frame) = self.swap_chain.get_next_texture() {
+            //.expect("Timeout getting texture");
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.view,
-                    resolve_target: None,
-                    load_op: wgpu::LoadOp::Clear,
-                    store_op: wgpu::StoreOp::Store,
-                    clear_color: wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 1.0,
-                    },
-                }],
-                depth_stencil_attachment: None,
-            });
+            {
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                        attachment: &frame.view,
+                        resolve_target: None,
+                        load_op: wgpu::LoadOp::Clear,
+                        store_op: wgpu::StoreOp::Store,
+                        clear_color: wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 1.0,
+                        },
+                    }],
+                    depth_stencil_attachment: None,
+                });
+                use decals::DrawDecals;
 
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.main_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, &self.vertex_buffer, 0, 0);
-            render_pass.set_index_buffer(&self.index_buffer, 0, 0);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+                render_pass.set_pipeline(&self.render_pipeline);
+                render_pass.set_bind_group(0, &self.main_bind_group, &[]);
+                render_pass.set_vertex_buffer(0, &self.vertex_buffer, 0, 0);
+                render_pass.set_index_buffer(&self.index_buffer, 0, 0);
+                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+                render_pass.draw_decals(&mut self.dcm, &mut self.device, &mut self.queue);
+            }
+            self.queue.submit(&[encoder.finish()]);
+        } else {
+            println!("Frame timeout !");
         }
-
-        self.queue.submit(&[encoder.finish()]);
     }
 
-    pub fn get_screen_slice(&mut self) -> &mut [u8] {
-        self.screen_buffer.as_slice()
+    pub fn create_decal(&mut self, spr: (&[u8], (u32, u32))) -> decals::Decal {
+        let (d, cmd) = decals::Decal::create(self, spr);
+        self.queue.submit(&[cmd]);
+        d
+    }
+    pub fn draw_decal_instance(&mut self, decal_instance: decals::DecalInstances) {
+        self.dcm.add_instance(decal_instance);
     }
 }
 
