@@ -92,10 +92,9 @@ fn main() {
                 );
 
                 if sample.0 > 0.0 && sample.0 < 1.0 && sample.1 > 0.0 && sample.1 < 1.0 {
-                    game.screen
-                        .draw(x, y, track_spr.get_sample(sample.0, sample.1));
+                    game.draw((x, y), track_spr.get_sample(sample.0, sample.1));
                 } else {
-                    game.screen.draw(x, y, [0, 0, 0].into());
+                    game.draw((x, y), [0, 0, 0].into());
                 }
             }
         }

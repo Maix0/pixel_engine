@@ -1,4 +1,5 @@
 use crate::Vertex;
+use wgpu::util::DeviceExt;
 pub type DecalTextureID = usize;
 
 #[derive(Debug)]
@@ -27,9 +28,11 @@ pub struct DecalContextManager {
 
 impl DecalContextManager {
     pub fn new(device: &wgpu::Device) -> (Self, wgpu::CommandBuffer) {
-        let mut encoder =
-            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("decal"),
+        });
         let buffer_vertex = device.create_buffer(&wgpu::BufferDescriptor {
+            mapped_at_creation: false,
             label: None,
             size: crate::VERTEX_BUFFER_SIZE,
             usage: wgpu::BufferUsage::COPY_DST
@@ -38,6 +41,7 @@ impl DecalContextManager {
         });
         let buffer_index = {
             let b = device.create_buffer(&wgpu::BufferDescriptor {
+                mapped_at_creation: false,
                 label: None,
                 size: std::mem::size_of::<[u16; 6]>() as u64,
                 usage: wgpu::BufferUsage::COPY_DST
@@ -45,12 +49,15 @@ impl DecalContextManager {
                     | wgpu::BufferUsage::COPY_SRC,
             });
             encoder.copy_buffer_to_buffer(
-                &device.create_buffer_with_data(
-                    bytemuck::cast_slice(crate::INDICES),
-                    wgpu::BufferUsage::INDEX
-                        | wgpu::BufferUsage::COPY_DST
-                        | wgpu::BufferUsage::COPY_SRC,
-                ),
+                &{
+                    device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: bytemuck::cast_slice(crate::INDICES),
+                        usage: wgpu::BufferUsage::INDEX
+                            | wgpu::BufferUsage::COPY_DST
+                            | wgpu::BufferUsage::COPY_SRC,
+                    })
+                },
                 0,
                 &b,
                 0,
@@ -84,35 +91,30 @@ impl DecalIDGenerator {
 }
 
 impl Decal {
-    pub fn create(
-        ctx: &mut crate::Context,
-        sprite: (&[u8], (u32, u32)),
-    ) -> (Self, wgpu::CommandBuffer) {
+    pub fn create(ctx: &mut crate::Context, sprite: (&[u8], (u32, u32))) -> Self {
         let id = ctx.dcm.id_generator.get();
-        let (tex, cmd) = crate::texture::Texture::from_bytes(&ctx.device, sprite);
+        let tex = crate::texture::Texture::from_bytes(&ctx.device, &ctx.queue, sprite);
         let bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &ctx.bind_group_layout,
-            bindings: &[
-                wgpu::Binding {
+            entries: &[
+                wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::TextureView(&tex.view),
                 },
-                wgpu::Binding {
+                wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&tex.sampler),
                 },
             ],
-            label: None,
+            label: Some("decal_bindgroup"),
         });
         ctx.dcm.decal_textures.insert(id, (tex, bind_group));
-        (
-            Self {
-                id,
-                size: sprite.1,
-                uv_scale: (1.0 / (sprite.1).0 as f32, 1.0 / (sprite.1).1 as f32),
-            },
-            cmd,
-        )
+
+        Self {
+            id,
+            size: sprite.1,
+            uv_scale: (1.0 / (sprite.1).0 as f32, 1.0 / (sprite.1).1 as f32),
+        }
     }
 
     pub fn destroy(self, ctx: &mut crate::Context) {
@@ -157,11 +159,13 @@ where
 
             // Update buffers
             {
-                let mut encoder =
-                    device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+                let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("encoder_decal"),
+                });
                 encoder.copy_buffer_to_buffer(
-                    &device.create_buffer_with_data(
-                        bytemuck::cast_slice(&[
+                    &device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("decal_buffer"),
+                        contents: bytemuck::cast_slice(&[
                             Vertex {
                                 position: [decal_instance.pos[0].0, decal_instance.pos[0].1, 0.0],
                                 tex_coords: [
@@ -195,20 +199,20 @@ where
                                 ],
                             },
                         ]),
-                        wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
-                    ),
+                        usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+                    }),
                     0,
                     &dcm.buffer_vertex,
                     0,
                     crate::VERTEX_BUFFER_SIZE,
                 );
-                queue.submit(&[encoder.finish()]);
+                queue.submit(std::iter::once(encoder.finish()));
             }
 
             // Render things
             self.set_bind_group(0, &texture.1, &[]);
-            self.set_index_buffer(&dcm.buffer_index, 0, 0);
-            self.set_vertex_buffer(0, &dcm.buffer_vertex, 0, 0);
+            self.set_index_buffer(dcm.buffer_index.slice(..), wgpu::IndexFormat::Uint16);
+            self.set_vertex_buffer(0, dcm.buffer_vertex.slice(..));
             self.draw_indexed(0..(crate::INDICES.len() as u32), 0, 0..1);
         }
         dcm.decal_instances.clear();
