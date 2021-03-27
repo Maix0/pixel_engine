@@ -10,10 +10,10 @@ exclude = ["Cargo.lock"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pixel_engine_backend = "0.2.1"
-pixel_engine_draw    = "0.2.0"
-futures = "0.3.5"
+pixel_engine_backend = "0.3.0"
+pixel_engine_draw    = "0.3.0"
+futures = "0.3.13"
 
 [dev-dependencies]
-rand= "0.7.3"
+rand= "0.8.3"
 
