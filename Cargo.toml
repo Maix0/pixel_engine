@@ -1,0 +1,7 @@
+[workspace]
+members=["pixel_engine","pixel_engine_backend","pixel_engine_draw","examples/fake_mode7","examples/fps_pixel","examples/fps_pixel_mk2","examples/decal_dungeons"]
+
+[patch.crates-io]
+pixel_engine = {path="./pixel_engine"}
+pixel_engine_draw ={path="./pixel_engine_draw"}
+pixel_engine_backend= {path="./pixel_engine_backend"}

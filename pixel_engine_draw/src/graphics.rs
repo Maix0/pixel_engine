@@ -27,6 +27,32 @@ impl Sprite {
         img.into_raw().into_boxed_slice()
     }
 
+    /// Load an rgba slice as an Sprite, will clone the slice
+    pub fn load_rgba(rgba: &[u8], width: usize, height: usize) -> Result<Self, String> {
+        if rgba.len() % 4 != 0 || rgba.len() != width * height * 4 {
+            Err("Wrong Image len".to_string())
+        } else {
+            Ok(Self {
+                width: width as u32,
+                height: height as u32,
+                raw: rgba.to_vec().into_boxed_slice(),
+            })
+        }
+    }
+
+    /// Load an image from bytes, will clone the slice
+    pub fn load_image_bytes(bytes: &[u8]) -> Result<Self, String> {
+        let img = image::load_from_memory(bytes)
+            .map_err(|err| err.to_string())?
+            .to_rgba();
+
+        Ok(Sprite {
+            width: (&img).width(),
+            height: (&img).height(),
+            raw: Self::image_to_boxedslice(img),
+        })
+    }
+
     ///Load a image file and return a Sprite object representing that image
     pub fn load_from_file(path: &std::path::Path) -> Result<Sprite, String> {
         let img = image::open(path).map_err(|err| err.to_string())?.to_rgba();

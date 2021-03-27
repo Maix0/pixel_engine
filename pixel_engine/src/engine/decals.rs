@@ -310,7 +310,6 @@ impl DecalDraw for crate::Engine {
                 * rd;
             if !(rn < 0.0 || rn > 1.0 || sn < 0.0 || sn > 1.0) {
                 center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
-                //println!("fdshuifdsqhiyfgqsyfgqsfgdqs");
             };
             let mut d = [0.0; 4];
             for i in 0..4 {
@@ -379,7 +378,6 @@ impl DecalDraw for crate::Engine {
                 * rd;
             if !(rn < 0.0 || rn > 1.0 || sn < 0.0 || sn > 1.0) {
                 center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
-                //println!("fdshuifdsqhiyfgqsyfgqsfgdqs");
             };
             let mut d = [0.0; 4];
             for i in 0..4 {
