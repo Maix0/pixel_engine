@@ -9,6 +9,10 @@ repository = "https://github.com/maix0/pixel_engine"
 exclude = ["Cargo.lock"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+webgl=["pixel_engine_backend/webgl"]
+
+
 [dependencies]
 pixel_engine_backend = "0.3.0"
 pixel_engine_draw    = "0.3.0"
