@@ -1,11 +1,10 @@
 [package]
-name = "fps_pixel_mk2"
+name = "raycast_world"
 version = "0.1.0"
-authors = ["maix0 <maix522@gmail.com>"]
+authors = ["Maix0 <maix522@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pixel_engine = "*"
-rust-embed = "5.5.1"
+pixel_engine="*"

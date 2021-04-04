@@ -1,16 +1,15 @@
 [package]
-name = "fps_pixel"
+name = "intersection"
 version = "0.1.0"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[[bin]]
-name="map-edit"
 
 [dependencies]
-pixel_engine = "0.3.0"
-ron = "0.6.0"
-serde = "1.0.114"
 
+[target.'cfg(target_arch="wasm32")'.dependencies]
+pixel_engine = {version = "*"}
 
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
+pixel_engine = "*"

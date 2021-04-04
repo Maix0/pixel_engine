@@ -29,11 +29,11 @@ impl Player {
     }
 }
 
-fn main() -> Result<(), String> {
-    let fac = 4;
-    let mut game = EngineWrapper::new("Pixel FPS".to_owned(), (120 * fac, 60 * fac, 10 / fac));
+async fn init() {
+    let fac = 5;
+    let game = EngineWrapper::new("Pixel FPS".to_owned(), (120 * fac, 60 * fac, 10 / fac)).await;
     // =======================
-    let viewport = (game.get_inner().size.0, 7 * game.get_inner().size.1 / 8);
+    let viewport = (game.size.0, 7 * game.size.1 / 8);
     let mut player = Player::new();
     let mut map = maps::WorldConstructor::load_file(String::from("maps/dev.map"))
         .unwrap()
@@ -43,7 +43,7 @@ fn main() -> Result<(), String> {
 
     // =======================
     game.run(move |game: &mut Engine| {
-        game.screen.clear(Color::BLACK);
+        game.clear(Color::BLACK);
         // WRITE YOUR CODE HERE
         if game.get_key(Keycode::Q).held {
             // TURN TO THE LEFT
@@ -152,7 +152,7 @@ fn main() -> Result<(), String> {
             for y in 0..=(viewport.1) {
                 if y as i64 <= ceiling {
                     // CEILING
-                    game.screen.draw(x as u32, y as u32, Color::BLACK);
+                    game.draw((x as i32, y as i32), Color::BLACK);
                 } else if y as i64 > ceiling && y as i64 <= floor {
                     // WALL
                     let sample_y =
@@ -164,7 +164,7 @@ fn main() -> Result<(), String> {
                     } else {
                         Color::GREEN
                     };
-                    game.screen.draw(x as u32, y as u32, color);
+                    game.draw((x as i32, y as i32), color);
                 /*match wall.get_sample(sample_x, sample_y) {
                     engine::Color::WHITE => {
                         println!("WHITE PIXEL DRAWN TO SCREEN!");
@@ -173,7 +173,7 @@ fn main() -> Result<(), String> {
                 };*/
                 } else {
                     // FLOOR
-                    game.screen.draw(x as u32, y as u32, Color::DARK_GREEN);
+                    game.draw((x as i32, y as i32), Color::DARK_GREEN);
                 }
             }
         }
@@ -181,41 +181,53 @@ fn main() -> Result<(), String> {
             for nx in 0..map.map.w {
                 match map.get_2d(nx as i64, ny as i64) {
                     Some('.') => {
-                        game.screen.fill_rect(
-                            (nx as u32 * MMF as u32) + MMF as u32,
-                            (ny as u32 * MMF as u32) + MMF as u32,
-                            MMF as u32,
-                            MMF as u32,
+                        game.fill_rect(
+                            (
+                                (nx as i32 * MMF as i32) + MMF as i32,
+                                (ny as i32 * MMF as i32) + MMF as i32,
+                            ),
+                            (MMF as i32, MMF as i32),
                             Color::BLACK,
                         );
                     }
                     _ => {
-                        game.screen.fill_rect(
-                            (nx as u32 * MMF as u32) + MMF as u32,
-                            (ny as u32 * MMF as u32) + MMF as u32,
-                            MMF as u32,
-                            MMF as u32,
+                        game.fill_rect(
+                            (
+                                (nx as i32 * MMF as i32) + MMF as i32,
+                                (ny as i32 * MMF as i32) + MMF as i32,
+                            ),
+                            (MMF as i32, MMF as i32),
                             Color::RED,
                         );
                     }
                 }
-                game.screen.fill_rect(
-                    (player.x as u32 * MMF as u32) + MMF as u32,
-                    (player.y as u32 * MMF as u32) + MMF as u32,
-                    MMF as u32,
-                    MMF as u32,
+                game.fill_rect(
+                    (
+                        (player.x as i32 * MMF as i32) + MMF as i32,
+                        (player.y as i32 * MMF as i32) + MMF as i32,
+                    ),
+                    (MMF as i32, MMF as i32),
                     Color::GREEN,
                 );
             }
         }
-        game.screen.draw_text(
-            0,
-            game.size.1 - 18,
+        game.draw_text(
+            (0, (game.size.1 - 18) as i32),
             2,
             [255, 255, 255].into(),
             &format!("{:.5}", game.elapsed),
         );
         return Ok(true);
     });
-    Ok(())
+}
+
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }

@@ -1,8 +1,8 @@
 extern crate pixel_engine as engine;
 
 use engine::traits::*;
-fn main() {
-    let game = engine::EngineWrapper::new("Mode 7".to_owned(), (650 * 2, 350 * 2, 1));
+async fn init() {
+    let game = engine::EngineWrapper::new("Mode 7".to_owned(), (650 * 2, 350 * 2, 1)).await;
     let track_spr =
         engine::graphics::Sprite::load_from_file(&std::path::Path::new("spr/mariocircuit-1.png"))
             .unwrap();
@@ -92,9 +92,12 @@ fn main() {
                 );
 
                 if sample.0 > 0.0 && sample.0 < 1.0 && sample.1 > 0.0 && sample.1 < 1.0 {
-                    game.draw((x, y), track_spr.get_sample(sample.0, sample.1));
+                    game.draw(
+                        (x as i32, y as i32),
+                        track_spr.get_sample(sample.0, sample.1),
+                    );
                 } else {
-                    game.draw((x, y), [0, 0, 0].into());
+                    game.draw((x as i32, y as i32), [0, 0, 0].into());
                 }
             }
         }
@@ -192,4 +195,15 @@ fn main() {
         */
         Ok(true)
     });
+}
+
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }

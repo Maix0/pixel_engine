@@ -34,9 +34,10 @@ pub struct Tile {
 }
 impl Tile {
     pub fn load(&mut self) -> Result<(), String> {
-        self.sprite = Some(Sprite::load_from_file(std::path::Path::new(
-            &self.sprite_path,
-        ))?);
+        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push(std::path::Path::new(&self.sprite_path));
+
+        self.sprite = Some(Sprite::load_from_file(&path)?);
         Ok(())
     }
 }
@@ -54,9 +55,11 @@ impl WorldConstructor {
             tiles: std::collections::HashMap::new(),
         }
     }
-    pub fn load_file(path: String) -> Result<WorldConstructor, String> {
+    pub fn load_file(path_str: String) -> Result<WorldConstructor, String> {
         use std::io::prelude::*;
-        if std::path::Path::new(&path).exists() {
+        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        path.push(std::path::Path::new(&path_str));
+        if path.exists() {
             let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
             let mut data = String::new();
             file.read_to_string(&mut data).map_err(|e| e.to_string())?;

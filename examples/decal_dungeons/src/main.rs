@@ -1,4 +1,4 @@
-use engine::vector2::{Vf2d, Vu2d};
+use engine::vector2::{Vf2d, Vi2d, Vu2d};
 use pixel_engine as engine;
 use pixel_engine::{inputs, traits::*, Color, EngineWrapper, Sprite};
 
@@ -235,8 +235,8 @@ fn get_face_quad(
     }
 }
 
-fn main() {
-    let mut game = EngineWrapper::new("Decal Dungeons".to_owned(), (255, 255, 2));
+async fn init() {
+    let mut game = EngineWrapper::new("Decal Dungeons".to_owned(), (255, 255, 2)).await;
     let mut world = World::new(16, 16);
     let tile_size: Vf2d = (32.0, 32.0).into();
     let mut base_wall_id: [Vf2d; 6] = [
@@ -281,14 +281,14 @@ fn main() {
                 game.draw_rect(
                     {
                         let t = tile_cursor * tile_size;
-                        Vu2d {
-                            x: t.x as u32,
-                            y: t.y as u32,
+                        Vi2d {
+                            x: t.x as i32,
+                            y: t.y as i32,
                         }
                     },
-                    Vu2d {
-                        x: tile_size.x as u32,
-                        y: tile_size.y as u32,
+                    Vi2d {
+                        x: tile_size.x as i32,
+                        y: tile_size.y as i32,
                     },
                     Color::WHITE,
                 );
@@ -499,4 +499,15 @@ fn main() {
 
         Ok(!game.get_key(inputs::Keycodes::Escape).any())
     });
+}
+
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }

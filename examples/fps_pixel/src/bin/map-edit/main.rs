@@ -1,6 +1,8 @@
+#![allow(dead_code)]
 extern crate pixel_engine as engine;
 extern crate ron;
 extern crate serde;
+
 #[path = "../../maps.rs"]
 mod maps;
 use engine::inputs::Keycodes as Keycode;
@@ -9,41 +11,34 @@ fn sprite_frame(game: &mut engine::Engine, spr: &Option<engine::Sprite>) {
     if let Some(spr) = spr {
         for x in 0..257 {
             for y in 0..257 {
-                game.screen.draw(
-                    x + 5,
-                    y + 305,
+                game.draw(
+                    (x + 5, y + 305),
                     spr.get_sample(x as f64 / 256_f64, y as f64 / 256_f64),
                 )
             }
         }
     } else {
-        game.screen
-            .draw_line((6, 306), (6 + 254, 306 + 254), engine::Color::WHITE);
-        game.screen
-            .draw_line((6, 306 + 254), (6 + 254, 306), engine::Color::WHITE);
+        game.draw_line((6, 306), (6 + 254, 306 + 254), engine::Color::WHITE);
+        game.draw_line((6, 306 + 254), (6 + 254, 306), engine::Color::WHITE);
     }
 }
 
-fn main() -> Result<(), String> {
-    let game = engine::EngineWrapper::new("FPS Map Editor".to_owned(), (600, 600, 1));
+async fn init() {
+    let game = engine::EngineWrapper::new("FPS Map Editor".to_owned(), (600, 600, 1)).await;
     let args: Vec<_> = std::env::args().collect();
     //let mut c_world = WorldConstructor::new();
     let mut c_world: maps::WorldConstructor;
     if args.len() > 1 {
-        c_world = maps::WorldConstructor::load_file(args[1].clone()).map_err(|e| e.to_string())?;
+        c_world = maps::WorldConstructor::load_file(args[1].clone()).unwrap();
     } else {
         panic!("Filename required");
     }
     let mut typing = false;
     let mut typed_string = String::new();
     let mut finished_string = String::new();
-    std::fs::write(
-        &args[1],
-        ron::ser::to_string(&c_world.to_world()).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    std::fs::write(&args[1], ron::ser::to_string(&c_world.to_world()).unwrap()).unwrap();
     for tile in &mut c_world.tiles {
-        tile.1.load()?;
+        tile.1.load().unwrap();
     }
     let selected_tile: Option<&maps::Tile> = None;
     let mut selected_tile_index = 0;
@@ -99,13 +94,12 @@ fn main() -> Result<(), String> {
             finished_string = String::new();
         }
 
-        game.screen.clear(engine::Color::BLACK);
-        game.screen.draw_rect(5, 5, 590, 295, engine::Color::RED);
-        game.screen.draw_rect(5, 305, 257, 256, engine::Color::BLUE);
-        game.screen.draw_rect(5, 566, 257, 29, engine::Color::WHITE);
-        game.screen
-            .draw_rect(266, 305, 329, 290, engine::Color::GREEN);
-        //game.screen
+        game.clear(engine::Color::BLACK);
+        game.draw_rect((5, 5), (590, 295), engine::Color::RED);
+        game.draw_rect((5, 305), (257, 256), engine::Color::BLUE);
+        game.draw_rect((5, 566), (257, 29), engine::Color::WHITE);
+        game.draw_rect((266, 305), (329, 290), engine::Color::GREEN);
+        //game
         //    .draw_string(0, 0, typed_string.clone(), engine::Color::WHITE, 1)?;
 
         // HANDLE MAP VIEW + EDIT
@@ -153,28 +147,33 @@ fn main() -> Result<(), String> {
                 c_world.map_set(c_tile_x as usize, c_tile_y as usize, selected_char);
             }
         }
-        game.screen.fill_rect(
-            (offset_x + 8 * c_tile_x as usize) as u32,
-            (offset_y + 8 * c_tile_y as usize) as u32,
-            8,
-            8,
+        game.fill_rect(
+            (
+                (offset_x + 8 * c_tile_x as usize) as i32,
+                (offset_y + 8 * c_tile_y as usize) as i32,
+            ),
+            (8, 8),
             engine::Color::GREY,
         );
         for row in &mut c_world.map {
             index_x = 0;
             for chr in row.chars() {
                 if index_y == c_tile_y as usize && index_x == c_tile_x as usize {
-                    game.screen.draw_text(
-                        (offset_x + 8 * index_x) as u32,
-                        (offset_y + 8 * index_y) as u32,
+                    game.draw_text(
+                        (
+                            (offset_x + 8 * index_x) as i32,
+                            (offset_y + 8 * index_y) as i32,
+                        ),
                         1,
                         engine::Color::BLACK,
                         &format!("{}", chr),
                     );
                 } else {
-                    game.screen.draw_text(
-                        (offset_x + 8 * index_x) as u32,
-                        (offset_y + 8 * index_y) as u32,
+                    game.draw_text(
+                        (
+                            (offset_x + 8 * index_x) as i32,
+                            (offset_y + 8 * index_y) as i32,
+                        ),
                         1,
                         engine::Color::WHITE,
                         &format!("{}", chr),
@@ -230,36 +229,31 @@ fn main() -> Result<(), String> {
                 }
             }
 
-            game.screen
-                .fill_rect(50, 150, 500, 100, engine::Color::BLACK);
-            game.screen
-                .draw_rect(50, 150, 500, 100, engine::Color::MAGENTA);
-            game.screen
-                .draw_text(51, 151, 2, engine::Color::WHITE, "Sprite Path");
-            game.screen.draw_rect(51, 167, 498, 10, engine::Color::RED);
-            game.screen.draw_text(
-                52,
-                168,
+            game.fill_rect((50, 150), (500, 100), engine::Color::BLACK);
+            game.draw_rect((50, 150), (500, 100), engine::Color::MAGENTA);
+            game.draw_text((51, 151), 2, engine::Color::WHITE, "Sprite Path");
+            game.draw_rect((51, 167), (498, 10), engine::Color::RED);
+            game.draw_text(
+                (52, 168),
                 1,
                 engine::Color::WHITE,
                 &format!("{}", &add_tile_t.sprite_path),
             );
-            game.screen
-                .draw_text(51, 177, 2, engine::Color::WHITE, "Sprite Char");
-            game.screen
-                .draw_rect(51, 167 + 26, 16 * 4 + 2, 18, engine::Color::YELLOW);
-            game.screen
-                .draw_rect(51 + 16 * 4 + 2 + 5, 167 + 26, 18, 18, engine::Color::YELLOW);
-            game.screen.draw_text(
-                52,
-                168 + 26,
+            game.draw_text((51, 177), 2, engine::Color::WHITE, "Sprite Char");
+            game.draw_rect((51, 167 + 26), (16 * 4 + 2, 18), engine::Color::YELLOW);
+            game.draw_rect(
+                (51 + 16 * 4 + 2 + 5, 167 + 26),
+                (18, 18),
+                engine::Color::YELLOW,
+            );
+            game.draw_text(
+                (52, 168 + 26),
                 2,
                 engine::Color::WHITE,
                 &format!("{}", add_tile_chr_buf.clone()),
             );
-            game.screen.draw_text(
-                52 + 16 * 4 + 2 + 5,
-                168 + 26,
+            game.draw_text(
+                (52 + 16 * 4 + 2 + 5, 168 + 26),
                 2,
                 engine::Color::WHITE,
                 &format!("{}", add_tile_t.chr),
@@ -290,7 +284,7 @@ fn main() -> Result<(), String> {
                 }
             }
             /*
-            game.screen.draw_text(
+            game.draw_text(
                 0,
                 0,
                 format!("{}", add_tile_field),
@@ -311,24 +305,20 @@ fn main() -> Result<(), String> {
             match selected_tile.clone() {
                 Some(_) => {
                     if *chr == selected_tile.clone().unwrap().chr {
-                        game.screen.fill_rect(
-                            267,
-                            306 + d_offset,
-                            596 - 267 - 2,
-                            8,
+                        game.fill_rect(
+                            (267, 306 + d_offset),
+                            (596 - 267 - 2, 8),
                             engine::Color::VERY_DARK_GREY,
                         );
-                        game.screen.draw_text(
-                            267,
-                            306 + d_offset as u32,
+                        game.draw_text(
+                            (267, 306 + d_offset as i32),
                             1,
                             engine::Color::WHITE,
                             &format!("'{}': {}", chr, str_normalize(spr.sprite_path.clone())),
                         );
                     } else {
-                        game.screen.draw_text(
-                            267,
-                            306 + d_offset as u32,
+                        game.draw_text(
+                            (267, 306 + d_offset as i32),
                             1,
                             engine::Color::WHITE,
                             &format!("'{}': {}", chr, str_normalize(spr.sprite_path.clone())),
@@ -336,9 +326,8 @@ fn main() -> Result<(), String> {
                     }
                 }
                 _ => {
-                    game.screen.draw_text(
-                        267,
-                        306 + d_offset as u32,
+                    game.draw_text(
+                        (267, 306 + d_offset as i32),
                         1,
                         engine::Color::WHITE,
                         &format!("'{}': {}", chr, str_normalize(spr.sprite_path.clone())),
@@ -355,9 +344,8 @@ fn main() -> Result<(), String> {
             Some(tile) => {
                 sprite_frame(game, &tile.sprite); // Handle Sprite Preview
 
-                game.screen.draw_text(
-                    6,
-                    567,
+                game.draw_text(
+                    (6, 567),
                     1,
                     engine::Color::GREY,
                     &format!(
@@ -368,17 +356,15 @@ fn main() -> Result<(), String> {
             }
             None => {
                 sprite_frame(game, &None);
-                game.screen
-                    .draw_text(6, 566 + 8, 2, engine::Color::GREY, "No Tile Selected");
+                game.draw_text((6, 566 + 8), 2, engine::Color::GREY, "No Tile Selected");
             }
         };
         /*if let Some(tile) = selected_tile {
         } else {
         }*/
         // END OF SPRITE DATA
-        game.screen.draw_text(
-            0,
-            0,
+        game.draw_text(
+            (0, 0),
             1,
             if add_tile {
                 engine::Color::GREEN
@@ -389,7 +375,6 @@ fn main() -> Result<(), String> {
         );
         Ok(true)
     });
-    Ok(())
 }
 
 fn str_normalize(source: String) -> String {
@@ -445,4 +430,14 @@ fn normalize(source: Keycode) -> String {
         _ => "",
     })
     .to_owned()
+}
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }
