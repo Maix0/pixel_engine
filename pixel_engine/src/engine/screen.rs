@@ -1,5 +1,5 @@
 use px_draw::graphics::{Color, PixelMode, Sprite};
-use px_draw::vector2::Vu2d;
+use px_draw::vector2::Vi2d;
 #[derive(Debug)]
 pub(crate) struct DrawData {
     pub(crate) textsheet: Sprite,
@@ -46,49 +46,54 @@ impl px_draw::traits::ScreenTrait for crate::Engine {
     fn get_size(&self) -> (u32, u32) {
         (self.screen.width, self.screen.height)
     }
-    fn clear(&mut self, col: Color) {
-        self.screen = Sprite::new_with_color(self.screen.width, self.screen.height, col);
-    }
     fn get_textsheet(&self) -> &Sprite {
         &self.draw_data.textsheet
     }
-    fn draw<P: Into<Vu2d>>(&mut self, pos: P, col: Color) {
+    fn clear(&mut self, col: Color) {
+        self.screen = Sprite::new_with_color(self.screen.width, self.screen.height, col);
+    }
+    fn draw<P: Into<Vi2d>>(&mut self, pos: P, col: Color) {
         let pixel_mode = self.get_pixel_mode();
         let blend_factor = self.get_blend_factor();
-        let Vu2d { x, y } = pos.into();
-        if x >= self.screen.width || y >= self.screen.height {
+        let Vi2d { x, y } = pos.into();
+        if x >= self.screen.width as i32 || y >= self.screen.height as i32 || x < 0 || y < 0 {
             return;
         }
         match pixel_mode {
             PixelMode::Normal => {
-                self.screen.set_pixel(x, y, col);
+                self.screen.set_pixel(x as u32, y as u32, col);
             }
             PixelMode::Mask => {
                 if col.a == 255 {
-                    self.screen.set_pixel(x, y, col);
+                    self.screen.set_pixel(x as u32, y as u32, col);
                 }
             }
             PixelMode::Alpha => {
-                let current_color: Color = self.screen.get_pixel(x, y);
+                let current_color: Color = self.screen.get_pixel(x as u32, y as u32);
                 let alpha: f32 = (col.a as f32 / 255.0f32) * blend_factor;
                 let inverse_alpha: f32 = 1.0 - alpha;
                 let red: f32 = alpha * col.r as f32 + inverse_alpha * current_color.r as f32;
                 let green: f32 = alpha * col.g as f32 + inverse_alpha * current_color.g as f32;
                 let blue: f32 = alpha * col.b as f32 + inverse_alpha * current_color.b as f32;
-                self.screen.set_pixel(x, y, [red, green, blue].into());
+                self.screen
+                    .set_pixel(x as u32, y as u32, [red, green, blue].into());
             }
         }
     }
+    fn get_pixel<P: Into<Vi2d>>(&self, pos: P) -> Color {
+        let Vi2d { x, y } = pos.into();
+        if x < 0 || y < 0 {
+            Color::BLANK
+        } else {
+            self.screen.get_pixel(x as u32, y as u32)
+        }
+    }
+
     fn get_pixel_mode(&self) -> PixelMode {
         self.draw_data.pixel_mode
     }
-
     fn set_pixel_mode(&mut self, mode: PixelMode) {
         self.draw_data.pixel_mode = mode;
-    }
-    fn get_pixel<P: Into<Vu2d>>(&self, pos: P) -> Color {
-        let Vu2d { x, y } = pos.into();
-        self.screen.get_pixel(x, y)
     }
     fn get_blend_factor(&self) -> f32 {
         self.draw_data.blend_factor

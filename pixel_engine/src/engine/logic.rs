@@ -3,7 +3,6 @@ use super::decals;
 use super::inputs::{self, Input, KeySet, Mouse, MouseBtn, MouseWheel};
 use super::screen::DrawData;
 use super::Sprite;
-use futures::executor::block_on;
 
 use px_backend::winit::{
     self,
@@ -31,8 +30,13 @@ impl std::ops::DerefMut for EngineWrapper {
 
 impl EngineWrapper {
     /// Create the Engine and the Wrapper
-    pub fn new(title: String, size: (u32, u32, u32)) -> Self {
-        Self(Some(Engine::new(title, size)))
+    pub async fn new(title: String, size: (u32, u32, u32)) -> Self {
+        Self(Some(Engine::new(title, size).await))
+    }
+    /// Create the Engine and the Wrapper
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new_sync(title: String, size: (u32, u32, u32)) -> Self {
+        Self(Some(Engine::new_sync(title, size)))
     }
     /// The core of your program,
     ///
@@ -260,7 +264,7 @@ impl std::fmt::Debug for Engine {
 
 impl Engine {
     /// Create a new [`Engine`]
-    fn new(title: String, size: (u32, u32, u32)) -> Self {
+    async fn new(title: String, size: (u32, u32, u32)) -> Self {
         let event_loop = winit::event_loop::EventLoop::new();
         let window = winit::window::WindowBuilder::new()
             .with_inner_size(winit::dpi::PhysicalSize::new(
@@ -272,7 +276,37 @@ impl Engine {
             .build(&event_loop)
             .expect("Error when constructing window");
         window.set_visible(false);
-        let handler = block_on(px_backend::Context::new(&window, size));
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            use winit::platform::web::WindowExtWebSys;
+
+            let canvas = window.canvas();
+            let env = option_env!("PIXEL_ENGINE_CANVAS");
+            match env {
+                Some(id) => {
+                    let window_sys = web_sys::window().unwrap();
+                    let document = window_sys.document().unwrap();
+                    let parent_canvas = document
+                        .query_selector(&format!("#{}", id))
+                        .expect("The given ID does not exist")
+                        .unwrap();
+                    parent_canvas
+                        .append_child(&canvas)
+                        .expect("Append canvas to HTML body");
+                }
+                None => {
+                    let window_sys = web_sys::window().unwrap();
+                    let document = window_sys.document().unwrap();
+                    let body = document.body().unwrap();
+                    body.append_child(&canvas)
+                        .expect("Append canvas to HTML body");
+                }
+            }
+        }
+
+        let handler = px_backend::Context::new(&window, size).await;
+
         Engine {
             /* FRONTEND */
             size,
@@ -298,7 +332,12 @@ impl Engine {
             draw_data: DrawData::new(),
         }
     }
+    #[cfg(not(target_arch = "wasm32"))]
 
+    /// Make a Engine but sync
+    fn new_sync(title: String, size: (u32, u32, u32)) -> Self {
+        futures::executor::block_on(Self::new(title, size))
+    }
     /// Return the current Target size in pixel
     pub fn size(&self) -> (u32, u32) {
         use px_draw::traits::ScreenTrait;

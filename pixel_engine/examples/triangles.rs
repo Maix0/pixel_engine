@@ -2,11 +2,11 @@ extern crate pixel_engine as engine;
 
 use engine::inputs::Keycodes::*;
 use engine::traits::*;
-fn main() {
-    let game = engine::EngineWrapper::new("Template".to_owned(), (500, 500, 1));
-    let mut pts1 = (350, 250);
-    let mut pts2 = (121, 126);
-    let mut pts3 = (256, 485);
+async fn init() {
+    let game = engine::EngineWrapper::new("Template".to_owned(), (500, 500, 1)).await;
+    let mut pts1: (i32, i32) = (350, 250);
+    let mut pts2: (i32, i32) = (121, 126);
+    let mut pts3: (i32, i32) = (256, 485);
     let mut selected = 0;
     let mut fill = false;
     let text_scale = 4;
@@ -39,7 +39,7 @@ fn main() {
             }
         }
         if game.get_key(Down).any() {
-            if selected_pts.1 < game.size.1 - 1 {
+            if selected_pts.1 < game.size.1 as i32 - 1 {
                 (*selected_pts).1 += 1;
             }
         }
@@ -49,7 +49,7 @@ fn main() {
             }
         }
         if game.get_key(Right).any() {
-            if selected_pts.0 < game.size.0 - 1 {
+            if selected_pts.0 < game.size.0 as i32 - 1 {
                 (*selected_pts).0 += 1;
             }
         }
@@ -66,7 +66,7 @@ fn main() {
         //game.screen.draw(pts3.0, pts3.1, [0, 0, 255].into());
         game.draw_text(
             (0, 0),
-            text_scale,
+            text_scale as u32,
             [255, 0, 0].into(),
             &format!(
                 "{}({:>2},{:>2})",
@@ -80,7 +80,7 @@ fn main() {
         );
         game.draw_text(
             (0, text_scale * 8),
-            text_scale,
+            text_scale as u32,
             [0, 255, 0].into(),
             &format!(
                 "{}({:>2},{:>2})",
@@ -94,7 +94,7 @@ fn main() {
         );
         game.draw_text(
             (0, text_scale * 8 * 2),
-            text_scale,
+            text_scale as u32,
             [0, 0, 255].into(),
             &format!(
                 "{}({:>2},{:>2})",
@@ -107,20 +107,20 @@ fn main() {
             ),
         );
         game.draw_text(
-            (game.size.0 - 5 * 8 * text_scale, 0),
-            text_scale,
+            (game.size.0 as i32 - 5 * 8 * text_scale, 0),
+            text_scale as u32,
             [255, 255, 255].into(),
             "fill",
         );
         game.draw_text(
             (
                 match fill {
-                    true => game.size.0 - "Y".len() as u32 * 8 * text_scale,
-                    false => game.size.0 - "X".len() as u32 * 8 * text_scale,
+                    true => game.size.0 as i32 - "Y".len() as i32 * 8 * text_scale,
+                    false => game.size.0 as i32 - "X".len() as i32 * 8 * text_scale,
                 },
                 0,
             ),
-            text_scale,
+            text_scale as u32,
             match fill {
                 true => [0.0, 1.0, 0.0].into(),
                 false => [1.0, 0.0, 0.0].into(),
@@ -131,10 +131,21 @@ fn main() {
             },
         );
         game.draw_line(
-            (0, text_scale * 3 * 8),
-            (game.size.0, text_scale * 3 * 8),
+            (0, text_scale as i32 * 3 * 8),
+            (game.size.0 as i32, text_scale * 3 * 8),
             [255, 255, 255].into(),
         );
         Ok(true)
     });
+}
+
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }

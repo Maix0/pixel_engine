@@ -1,10 +1,11 @@
 extern crate pixel_engine as engine;
 extern crate rand;
 use engine::{traits::*, Color};
-fn main() {
+async fn init() {
     const FIRE_WIDTH: u32 = 250;
     const FIRE_HEIGTH: u32 = 120;
-    let game = engine::EngineWrapper::new("Doom Fire".to_owned(), (FIRE_WIDTH, FIRE_HEIGTH, 3));
+    let game =
+        engine::EngineWrapper::new("Doom Fire".to_owned(), (FIRE_WIDTH, FIRE_HEIGTH, 3)).await;
     let mut bottomline = true;
     let mut spread_center = 0;
     let mut spread_raduis = 0;
@@ -61,14 +62,14 @@ fn main() {
                 firepixel[dst - FIRE_WIDTH as usize] = pixel - (rand_idx & 1);
             }
         }
-    };
+    }
     fn do_fire(firepixel: &mut Vec<usize>) {
         for x in 0..FIRE_WIDTH {
             for y in 1..FIRE_HEIGTH {
                 spread_fire((y * FIRE_WIDTH + x) as usize, firepixel);
             }
         }
-    };
+    }
     for i in 0..game.size.0 {
         firepixel[((game.size.1 - 1) * game.size.0 + i) as usize] = 36;
     }
@@ -120,7 +121,7 @@ fn main() {
             for x in 0..game.size.0 {
                 let index = firepixel[(y * game.size.0 + x) as usize];
                 let pixel = palette[index];
-                game.draw((x, y), pixel);
+                game.draw((x as i32, y as i32), pixel);
             }
         }
         game.draw_text(
@@ -134,4 +135,15 @@ fn main() {
         );
         Ok(true)
     });
+}
+
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }

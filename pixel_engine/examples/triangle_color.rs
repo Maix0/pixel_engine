@@ -1,10 +1,10 @@
 extern crate pixel_engine as engine;
 use engine::traits::*;
-fn main() {
-    let mut game = engine::EngineWrapper::new("Triangle".to_string(), (500, 500, 1));
+async fn init() {
+    let mut game = engine::EngineWrapper::new("Triangle".to_string(), (500, 500, 1)).await;
     fn dist(p1: (i32, i32), p2: (i32, i32)) -> f64 {
         return (((p2.0 - p1.0).pow(2) + (p2.1 - p1.1).pow(2)) as f64).sqrt();
-    };
+    }
     let base = 0.95f32;
     let green = (
         (game.size.0 as f32 * (1f32 - base)) as i32,
@@ -47,7 +47,7 @@ fn main() {
                 && (lines.2).0 * x as i32 + (lines.2).1 * y as i32 >= (lines.2).2
             {
                 game.draw(
-                    (x, y),
+                    (x as i32, y as i32),
                     engine::Color::new(
                         ((1f64 - dist((x as i32, y as i32), red) / dist(red, blue)) * 255f64) as u8,
                         ((1f64 - dist((x as i32, y as i32), green) / dist(red, blue)) * 255f64)
@@ -57,9 +57,19 @@ fn main() {
                     ),
                 )
             } else {
-                game.draw((x, y), engine::Color::BLACK)
+                game.draw((x as i32, y as i32), engine::Color::BLACK)
             }
         }
     }
     game.run(|_| Ok(true));
+}
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }

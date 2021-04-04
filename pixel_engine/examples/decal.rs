@@ -2,8 +2,8 @@ extern crate pixel_engine as engine;
 use engine::traits::*;
 use engine::vector2::*;
 use engine::Color;
-fn main() {
-    let mut game = engine::EngineWrapper::new("Decal".to_owned(), (50, 50, 10));
+async fn init() {
+    let mut game = engine::EngineWrapper::new("Decal".to_owned(), (50, 50, 10)).await;
     let mut spr = engine::graphics::Sprite::new_with_color(10, 10, [1.0, 0.0, 0.0, 1.0].into());
     let mut draw_type: u8 = 1;
     for y in (0..spr.height).step_by(3) {
@@ -41,27 +41,27 @@ fn main() {
         if game.get_key(engine::inputs::Keycodes::Key4).any() {
             draw_type = 4;
         }
-        if game.get_key(engine::inputs::Keycodes::Key5).any() {
-            draw_type = 5;
-        }
-        if game.get_key(engine::inputs::Keycodes::Key6).any() {
-            draw_type = 6;
-        }
+        // if game.get_key(engine::inputs::Keycodes::Key5).any() {
+        //     draw_type = 5;
+        // }
+        // if game.get_key(engine::inputs::Keycodes::Key6).any() {
+        //     draw_type = 6;
+        // }
 
         game.clear([0.5, 0.5, 0.5].into());
         for y in (0..game.size.1).step_by(3) {
             for x in (0..game.size.0).step_by(3) {
-                game.draw((x + 0, y), Color::BLACK);
-                game.draw((x + 1, y), Color::YELLOW);
-                game.draw((x + 2, y), Color::VERY_DARK_CYAN);
+                game.draw((x as i32 + 0, y as i32), Color::BLACK);
+                game.draw((x as i32 + 1, y as i32), Color::YELLOW);
+                game.draw((x as i32 + 2, y as i32), Color::VERY_DARK_CYAN);
 
-                game.draw((x + 1, y + 1), Color::BLACK);
-                game.draw((x + 2, y + 1), Color::YELLOW);
-                game.draw((x + 0, y + 1), Color::VERY_DARK_CYAN);
+                game.draw((x as i32 + 1, y as i32 + 1), Color::BLACK);
+                game.draw((x as i32 + 2, y as i32 + 1), Color::YELLOW);
+                game.draw((x as i32 + 0, y as i32 + 1), Color::VERY_DARK_CYAN);
 
-                game.draw((x + 2, y + 2), Color::BLACK);
-                game.draw((x + 0, y + 2), Color::YELLOW);
-                game.draw((x + 1, y + 2), Color::VERY_DARK_CYAN)
+                game.draw((x as i32 + 2, y as i32 + 2), Color::BLACK);
+                game.draw((x as i32 + 0, y as i32 + 2), Color::YELLOW);
+                game.draw((x as i32 + 1, y as i32 + 2), Color::VERY_DARK_CYAN)
             }
         }
         game.draw_rect(
@@ -69,7 +69,11 @@ fn main() {
             {
                 let a: Vu2d = decal.size().into();
                 let b: Vu2d = (2, 2).into();
-                a + b
+                let Vu2d { x, y } = a + b;
+                Vi2d {
+                    x: x as i32,
+                    y: y as i32,
+                }
             },
             Color::RED,
         );
@@ -124,4 +128,15 @@ fn main() {
         game.draw_text((0, 0), 1, Color::RED, &format!("{:?}", draw_type));
         Ok(true) // return Ok(false) to stop nicely and Err(_) to stop & print the error
     });
+}
+
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
 }

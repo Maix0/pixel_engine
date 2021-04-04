@@ -1,8 +1,8 @@
 extern crate pixel_engine as engine;
 use engine::traits::*;
-fn main() {
+async fn init() {
     println!("[WIP] THIS EXAMPLE IS NOT WORKING AS INTENDED");
-    let game = engine::EngineWrapper::new("Path".to_owned(), (500, 500, 1));
+    let game = engine::EngineWrapper::new("Path".to_owned(), (500, 500, 1)).await;
     let mut pw = PathView::new(PathBuf::from("."));
     use engine::inputs::Keycodes::{Down, Escape, Left, Right, Up};
     game.run(move |game: &mut engine::Engine| {
@@ -31,7 +31,7 @@ fn main() {
             if i == pw.child_index {
                 //game.screen.draw_line()
                 game.draw_text(
-                    (200, 20 * i as u32),
+                    (200, 20 * i as i32),
                     2,
                     [0.0, 1.0, 1.0].into(),
                     match &pw.get_child_name()[i] {
@@ -41,7 +41,7 @@ fn main() {
                 );
             } else {
                 game.draw_text(
-                    (200, 20 * i as u32),
+                    (200, 20 * i as i32),
                     2,
                     [1.0, 1.0, 1.0].into(),
                     match &pw.get_child_name()[i] {
@@ -54,6 +54,18 @@ fn main() {
         Ok(true)
     });
 }
+
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use std::panic;
+        panic::set_hook(Box::new(pixel_engine::console_error_panic_hook::hook));
+        pixel_engine::wasm_bindgen_futures::spawn_local(init());
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    pixel_engine::futures::executor::block_on(init());
+}
+
 use std::path::PathBuf;
 
 struct PathView {

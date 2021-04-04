@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine"
-version = "0.3.6"
+version = "0.4.0"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -9,14 +9,22 @@ repository = "https://github.com/maix0/pixel_engine"
 exclude = ["Cargo.lock"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-webgl=["pixel_engine_backend/webgl"]
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+
+
 
 
 [dependencies]
 pixel_engine_backend = "0.3.0"
 pixel_engine_draw    = "0.3.0"
 futures = "0.3.13"
+web-sys = { version = "*", optional = true }
+
+[target.'cfg(target_arch="wasm32")'.dependencies]
+wasm-bindgen-futures = "*"
+console_error_panic_hook = "*"
 
 [dev-dependencies]
 rand= "0.8.3"
