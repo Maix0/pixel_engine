@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine_draw"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -12,3 +12,4 @@ exclude = ["Cargo.lock"]
 
 [dependencies]
 image = "0.23.14"
+paste = "1.0.5"

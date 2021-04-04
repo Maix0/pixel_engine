@@ -119,6 +119,21 @@ macro_rules! operator_assign {
         };
 }
 
+macro_rules! cast {
+    ($from:ty, $to:ty) => {
+        impl Vec2d<$from> {
+            paste! {
+                pub fn [<cast _$to>](self) -> Vec2d<$to> {
+                    Vec2d {
+                        x: self.x as $to,
+                        y: self.y as $to,
+                    }
+                }
+            }
+        }
+    };
+}
+
 operator!(Add, + , add);
 operator!(Sub, - , sub);
 operator!(Mul, * , mul);
@@ -129,6 +144,15 @@ operator_assign!(AddAssign, += , add_assign);
 operator_assign!(SubAssign, -= , sub_assign);
 operator_assign!(MulAssign, *= , mul_assign, T);
 operator_assign!(DivAssign, /= , div_assign, T);
+
+cast!(u32, f32);
+cast!(i32, f32);
+
+cast!(f32, u32);
+cast!(i32, u32);
+
+cast!(f32, i32);
+cast!(u32, i32);
 
 impl<T: Copy> From<(T, T)> for Vec2d<T> {
     fn from(t: (T, T)) -> Self {

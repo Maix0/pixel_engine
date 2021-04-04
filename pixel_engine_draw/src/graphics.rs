@@ -54,7 +54,7 @@ impl Sprite {
     }
 
     ///Load a image file and return a Sprite object representing that image
-    pub fn load_from_file(path: &std::path::Path) -> Result<Sprite, String> {
+    pub fn load_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Sprite, String> {
         let img = image::open(path).map_err(|err| err.to_string())?.to_rgba8();
 
         Ok(Sprite {
@@ -116,9 +116,8 @@ impl Sprite {
     /// Return the [Color] of the pixel at given sample
     /// It needs to be between 0.0 and 1.0 (both included)
     pub fn get_sample(&self, x: f64, y: f64) -> Color {
-        if x < 0.0 || x > 1.0 || y < 0.0 || y > 1.0 {
-            panic!("WTF ARE YOU DOING , SAMPLE NOT IN BOUND")
-        }
+        let x = x.fract();
+        let y = y.fract();
         let sample_x = ((x * (self.width) as f64) as u32).min(self.width - 1);
         let sample_y = ((y * (self.height) as f64) as u32).min(self.height - 1);
         self.get_pixel(sample_x, sample_y)
