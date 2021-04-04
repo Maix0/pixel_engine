@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine_backend"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -10,16 +10,17 @@ exclude = ["Cargo.lock"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-#vulkan = ["wgpu/vulkan"]
 webgl= ["wgpu/webgl"]
 
 [dependencies]
 wgpu = "0.7.0"
 bytemuck = "1.5.1"
 
-
 [target.'cfg(target_arch="wasm32")'.dependencies]
 winit = {version = "0.24.0", features = ["web-sys"]}
+getrandom = { version = "0.2", features = ["js"] }
+
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 winit = "0.24.0"
+

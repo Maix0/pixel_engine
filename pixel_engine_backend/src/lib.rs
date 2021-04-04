@@ -78,13 +78,13 @@ pub struct Context {
 impl Context {
     pub async fn new(window: &Window, px_size: (u32, u32, u32)) -> Self {
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::BackendBit::all());
 
         let surface = unsafe { instance.create_surface(window) };
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
+                power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
             })
             .await
@@ -104,7 +104,10 @@ impl Context {
 
         let sc_desc = wgpu::SwapChainDescriptor {
             usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-            format: wgpu::TextureFormat::Bgra8UnormSrgb,
+            #[cfg(target_arch = "wasm32")]
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            #[cfg(not(target_arch = "wasm32"))]
+            format: wgpu::TextureFormat::Bgra8Unorm,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
@@ -195,7 +198,7 @@ impl Context {
             vertex: wgpu::VertexState {
                 module: &vs_module,
                 entry_point: "main",
-                buffers: &[Vertex::desc()], // TODO: Change this to work with given buffers
+                buffers: &[Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fs_module,
@@ -239,6 +242,8 @@ impl Context {
         let encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
+
+        println!("sile");
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
