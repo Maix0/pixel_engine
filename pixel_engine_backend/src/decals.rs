@@ -8,6 +8,7 @@ pub struct DecalInstances {
     pub pos: [(f32, f32); 4],
     pub uv: [(f32, f32); 4],
     pub w: [f32; 4],
+    pub tint: [f32; 4],
 }
 
 #[derive(Debug)]
@@ -173,6 +174,7 @@ where
                                     decal_instance.uv[0].1,
                                     decal_instance.w[0],
                                 ],
+                                tint: decal_instance.tint,
                             },
                             Vertex {
                                 position: [decal_instance.pos[1].0, decal_instance.pos[1].1, 0.0],
@@ -181,6 +183,7 @@ where
                                     decal_instance.uv[1].1,
                                     decal_instance.w[1],
                                 ],
+                                tint: decal_instance.tint,
                             },
                             Vertex {
                                 position: [decal_instance.pos[2].0, decal_instance.pos[2].1, 0.0],
@@ -189,6 +192,7 @@ where
                                     decal_instance.uv[2].1,
                                     decal_instance.w[2],
                                 ],
+                                tint: decal_instance.tint,
                             },
                             Vertex {
                                 position: [decal_instance.pos[3].0, decal_instance.pos[3].1, 0.0],
@@ -197,6 +201,7 @@ where
                                     decal_instance.uv[3].1,
                                     decal_instance.w[3],
                                 ],
+                                tint: decal_instance.tint,
                             },
                         ]),
                         usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,

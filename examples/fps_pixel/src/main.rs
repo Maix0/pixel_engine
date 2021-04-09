@@ -31,7 +31,7 @@ impl Player {
 
 async fn init() {
     let fac = 5;
-    let game = EngineWrapper::new("Pixel FPS".to_owned(), (120 * fac, 60 * fac, 10 / fac)).await;
+    let game = EngineWrapper::new("Pixel FPS".to_owned(), (120 * fac, 60 * fac, 10 / fac));
     // =======================
     let viewport = (game.size.0, 7 * game.size.1 / 8);
     let mut player = Player::new();
@@ -117,31 +117,29 @@ async fn init() {
                     hit_wall = true;
                     wall_distance = player.depth;
                     sample_x = -1.0;
-                } else {
-                    if map.get_2d(test_x, test_y) != Some('.') {
-                        hit_wall = true;
-                        current_tile = map.get_2d(test_x, test_y).unwrap();
-                        // MIDDLE OF WALL AS f64
-                        let mid_x = test_x as f64 + 0.5_f64;
-                        let mid_y = test_y as f64 + 0.5_f64;
+                } else if map.get_2d(test_x, test_y) != Some('.') {
+                    hit_wall = true;
+                    current_tile = map.get_2d(test_x, test_y).unwrap();
+                    // MIDDLE OF WALL AS f64
+                    let mid_x = test_x as f64 + 0.5_f64;
+                    let mid_y = test_y as f64 + 0.5_f64;
 
-                        let test_point_x = player.x + eye_x * wall_distance;
-                        let test_point_y = player.y + eye_y * wall_distance;
+                    let test_point_x = player.x + eye_x * wall_distance;
+                    let test_point_y = player.y + eye_y * wall_distance;
 
-                        let test_angle =
-                            (test_point_y as f64 - mid_y).atan2(test_point_x as f64 - mid_x);
+                    let test_angle =
+                        (test_point_y as f64 - mid_y).atan2(test_point_x as f64 - mid_x);
 
-                        if test_angle >= -PI * 0.25_f64 && test_angle < PI * 0.25_f64 {
-                            sample_x = test_point_y - (test_y as f64);
-                        } else if test_angle >= PI * 0.25_f64 && test_angle < PI * 0.75_f64 {
-                            sample_x = test_point_x - (test_x as f64);
-                        } else if test_angle < -PI * 0.25_f64 && test_angle >= -PI * 0.75_f64 {
-                            sample_x = test_point_x - (test_x as f64);
-                        } else if test_angle >= PI * 0.75_f64 || test_angle < -PI * 0.75_f64 {
-                            sample_x = test_point_y - (test_y as f64);
-                        } else {
-                            sample_x = -1.0_f64
-                        }
+                    if test_angle >= -PI * 0.25_f64 && test_angle < PI * 0.25_f64 {
+                        sample_x = test_point_y - (test_y as f64);
+                    } else if test_angle >= PI * 0.25_f64 && test_angle < PI * 0.75_f64 {
+                        sample_x = test_point_x - (test_x as f64);
+                    } else if test_angle < -PI * 0.25_f64 && test_angle >= -PI * 0.75_f64 {
+                        sample_x = test_point_x - (test_x as f64);
+                    } else if test_angle >= PI * 0.75_f64 || test_angle < -PI * 0.75_f64 {
+                        sample_x = test_point_y - (test_y as f64);
+                    } else {
+                        sample_x = -1.0_f64
                     }
                 }
             }

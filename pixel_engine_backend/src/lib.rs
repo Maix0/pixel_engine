@@ -13,6 +13,8 @@ pub(crate) struct Vertex {
     position: [f32; 3],
     // UV + q for warped Decal
     tex_coords: [f32; 3],
+
+    tint: [f32; 4],
 }
 
 unsafe impl bytemuck::Pod for Vertex {}
@@ -35,6 +37,11 @@ impl VertexTrait for Vertex {
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float3,
                 },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float4,
+                },
             ],
         }
     }
@@ -45,10 +52,10 @@ pub const VERTEX_BUFFER_SIZE: u64 = std::mem::size_of::<[Vertex; 4]>() as u64;
 const CORNER: f32 = 1f32;
 #[rustfmt::skip]
 const VERTICES: &[Vertex] = &[
-    Vertex { position: [-CORNER, CORNER, 0.0], tex_coords: [0.0, 0.0, 1.0] }, // A
-    Vertex { position: [-CORNER,-CORNER, 0.0], tex_coords: [0.0, 1.0, 1.0] }, // B
-    Vertex { position: [ CORNER,-CORNER, 0.0], tex_coords: [1.0, 1.0, 1.0] }, // C
-    Vertex { position: [ CORNER, CORNER, 0.0], tex_coords: [1.0, 0.0, 1.0] }, // D
+    Vertex { position: [-CORNER, CORNER, 0.0], tex_coords: [0.0, 0.0, 1.0], tint: [1.0, 1.0, 1.0, 1.0] }, // A
+    Vertex { position: [-CORNER,-CORNER, 0.0], tex_coords: [0.0, 1.0, 1.0], tint: [1.0, 1.0, 1.0, 1.0] }, // B
+    Vertex { position: [ CORNER,-CORNER, 0.0], tex_coords: [1.0, 1.0, 1.0], tint: [1.0, 1.0, 1.0, 1.0] }, // C
+    Vertex { position: [ CORNER, CORNER, 0.0], tex_coords: [1.0, 0.0, 1.0], tint: [1.0, 1.0, 1.0, 1.0] }, // D
 ];
 
 #[rustfmt::skip]

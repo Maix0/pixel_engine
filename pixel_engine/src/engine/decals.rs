@@ -1,3 +1,4 @@
+use pixel_engine_draw::graphics::Color;
 use px_backend::decals;
 
 pub struct Decal(pub(crate) decals::Decal);
@@ -12,6 +13,7 @@ impl Decal {
 }
 
 impl std::fmt::Debug for Decal {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Decal").field("0", &"Inner Decal").finish()
     }
@@ -55,21 +57,36 @@ pub trait DecalDraw {
     */
 
     /// Draw A decal with given position and uv (You probably don't want to use this)
-    fn draw_explicit_decal<P: Into<Vf2d> + Copy>(&mut self, pos: [P; 4], uv: [P; 4], decal: &Decal);
+    fn draw_explicit_decal<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: [P; 4],
+        uv: [P; 4],
+        decal: &Decal,
+        tint: Color,
+    );
     /// Draw a decal from the given position
-    fn draw_decal<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal);
+    #[inline]
+    fn draw_decal<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal) {
+        self.draw_decal_tinted(pos, decal, Color::WHITE)
+    }
     /// Draw a decal with a given scale
-    fn draw_decal_scaled<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, scale: P);
-
+    #[inline]
+    fn draw_decal_scaled<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, scale: P) {
+        self.draw_decal_scaled_tinted(pos, decal, scale, Color::WHITE)
+    }
     /// Draw a partial decal from the given position
+    #[inline]
     fn draw_partial_decal<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
         source_pos: P,
         source_size: P,
-    );
+    ) {
+        self.draw_partial_decal_tinted(pos, decal, source_pos, source_size, Color::WHITE)
+    }
     /// Draw a partial decal with a given scale
+    #[inline]
     fn draw_partial_decal_scaled<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
@@ -77,37 +94,56 @@ pub trait DecalDraw {
         source_pos: P,
         source_size: P,
         scale: P,
-    );
+    ) {
+        self.draw_partial_decal_scaled_tinted(
+            pos,
+            decal,
+            source_pos,
+            source_size,
+            scale,
+            Color::WHITE,
+        )
+    }
 
     /// Draw a decal where all Corner are given, this will set the uv correctly to allow texture
     /// warping
     /// The points are in order:
     ///
     /// TopLeft, BottomLeft, BottomRight, TopRight
-    fn draw_warped_decal<P: Into<Vf2d> + Copy>(&mut self, pos: [P; 4], decal: &Decal);
+    #[inline]
+    fn draw_warped_decal<P: Into<Vf2d> + Copy>(&mut self, pos: [P; 4], decal: &Decal) {
+        self.draw_warped_decal_tinted(pos, decal, Color::WHITE)
+    }
     /// Draw a decal where all Corner are given, this will set the uv correctly to allow texture
     /// warping
     /// The points are in order:
     ///
     /// TopLeft, BottomLeft, BottomRight, TopRight
+    #[inline]
     fn draw_warped_partial_decal<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: [P; 4],
         source_pos: P,
         source_size: P,
         decal: &Decal,
-    );
+    ) {
+        self.draw_warped_partial_decal_tinted(pos, source_pos, source_size, decal, Color::WHITE)
+    }
 
     /// Draw a decal rotated `angle` radians around `center`
     /// center is an offset in pixel from the top left corner of the decal
+    #[inline]
     fn draw_rotated_decal<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
         angle: f32,
         center: P,
-    );
+    ) {
+        self.draw_rotated_decal_tinted(pos, decal, center, angle, Color::WHITE)
+    }
     /// Same as `draw_rotated_decal` but with scaling
+    #[inline]
     fn draw_rotated_decal_scaled<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
@@ -115,8 +151,11 @@ pub trait DecalDraw {
         angle: f32,
         center: P,
         scale: P,
-    );
+    ) {
+        self.draw_rotated_decal_scaled_tinted(pos, decal, center, angle, scale, Color::WHITE);
+    }
     /// Draw a zone of a decal and rotate it
+    #[inline]
     fn draw_partial_rotated_decal<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
@@ -125,8 +164,19 @@ pub trait DecalDraw {
         center: P,
         source_pos: P,
         source_size: P,
-    );
+    ) {
+        self.draw_partial_rotated_decal_tinted(
+            pos,
+            decal,
+            angle,
+            center,
+            source_pos,
+            source_size,
+            Color::WHITE,
+        )
+    }
     /// Draw a zone of a decal, rotate it and scaled it
+    #[inline]
     fn draw_partial_rotated_decal_scaled<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
@@ -136,37 +186,255 @@ pub trait DecalDraw {
         source_pos: P,
         source_size: P,
         scaled: P,
+    ) {
+        self.draw_partial_rotated_decal_scaled_tinted(
+            pos,
+            decal,
+            angle,
+            center,
+            source_pos,
+            source_size,
+            scaled,
+            Color::WHITE,
+        )
+    }
+
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_decal_tinted<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, tint: Color);
+
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        scale: P,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_partial_decal_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        source_pos: P,
+        source_size: P,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_partial_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        source_pos: P,
+        source_size: P,
+        scale: P,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_warped_decal_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: [P; 4],
+        decal: &Decal,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_warped_partial_decal_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: [P; 4],
+        source_pos: P,
+        source_size: P,
+        decal: &Decal,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_rotated_decal_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        center: P,
+        angle: f32,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_rotated_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        center: P,
+        angle: f32,
+        scale: P,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_partial_rotated_decal_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        angle: f32,
+        center: P,
+        source_pos: P,
+        source_size: P,
+        tint: Color,
+    );
+    /// Same as the non tinted variant, but with an tint color parameter
+
+    fn draw_partial_rotated_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        angle: f32,
+        center: P,
+        source_pos: P,
+        source_size: P,
+        scaled: P,
+        tint: Color,
     );
 }
 
 impl DecalDraw for crate::Engine {
-    fn draw_decal_scaled<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, scale: P) {
-        into!(scale, pos);
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-        let topleft = normalize!(pos, screen_size);
-        let bottomright = normalize!(
-            {
-                pos + Vf2d {
-                    x: decal.0.size.0 as f32,
-                    y: decal.0.size.1 as f32,
-                } * scale
-            },
-            screen_size
-        );
-        self.handler
-            .draw_decal_instance(px_backend::decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [
-                    (topleft.x, topleft.y),         // A
-                    (topleft.x, bottomright.y),     // B
-                    (bottomright.x, bottomright.y), // C
-                    (bottomright.x, topleft.y),     // D
-                ],
-                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                w: [1.0; 4],
-            });
+    #[inline]
+    fn draw_explicit_decal<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: [P; 4],
+        uv: [P; 4],
+        decal: &Decal,
+        tint: Color,
+    ) {
+        let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
+        let uv: [Vf2d; 4] = [uv[0].into(), uv[1].into(), uv[2].into(), uv[3].into()];
+        let mut di = px_backend::decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
+            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            w: [1.0; 4],
+            tint: tint.into(),
+        };
+        for i in 0..4 {
+            di.pos[i] = (
+                (pos[i].x / (self.size.0) as f32) * 2.0 - 1.0,
+                ((pos[i].y / (self.size.1) as f32) * 2.0 - 1.0) * -1.0,
+            );
+            di.uv[i] = (uv[i].x, uv[i].y);
+        }
+        self.handler.draw_decal_instance(di);
     }
     fn draw_decal<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal) {
+        self.draw_decal_tinted(pos, decal, Color::WHITE)
+    }
+    fn draw_decal_scaled<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, scale: P) {
+        self.draw_decal_scaled_tinted(pos, decal, scale, Color::WHITE)
+    }
+    fn draw_partial_decal<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        source_pos: P,
+        source_size: P,
+    ) {
+        self.draw_partial_decal_tinted(pos, decal, source_pos, source_size, Color::WHITE)
+    }
+
+    fn draw_partial_decal_scaled<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        source_pos: P,
+        source_size: P,
+        scale: P,
+    ) {
+        self.draw_partial_decal_scaled_tinted(
+            pos,
+            decal,
+            source_pos,
+            source_size,
+            scale,
+            Color::WHITE,
+        )
+    }
+    fn draw_warped_decal<P: Into<Vf2d> + Copy>(&mut self, pos: [P; 4], decal: &Decal) {
+        self.draw_warped_decal_tinted(pos, decal, Color::WHITE)
+    }
+
+    fn draw_warped_partial_decal<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: [P; 4],
+        source_pos: P,
+        source_size: P,
+        decal: &Decal,
+    ) {
+        self.draw_warped_partial_decal_tinted(pos, source_pos, source_size, decal, Color::WHITE)
+    }
+
+    fn draw_rotated_decal<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        angle: f32,
+        center: P,
+    ) {
+        self.draw_rotated_decal_tinted(pos, decal, center, angle, Color::WHITE)
+    }
+    fn draw_rotated_decal_scaled<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        angle: f32,
+        center: P,
+        scale: P,
+    ) {
+        self.draw_rotated_decal_scaled_tinted(pos, decal, center, angle, scale, Color::WHITE);
+    }
+    fn draw_partial_rotated_decal<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        angle: f32,
+        center: P,
+        source_pos: P,
+        source_size: P,
+    ) {
+        self.draw_partial_rotated_decal_tinted(
+            pos,
+            decal,
+            angle,
+            center,
+            source_pos,
+            source_size,
+            Color::WHITE,
+        )
+    }
+    fn draw_partial_rotated_decal_scaled<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        angle: f32,
+        center: P,
+        source_pos: P,
+        source_size: P,
+        scaled: P,
+    ) {
+        self.draw_partial_rotated_decal_scaled_tinted(
+            pos,
+            decal,
+            angle,
+            center,
+            source_pos,
+            source_size,
+            scaled,
+            Color::WHITE,
+        )
+    }
+
+    #[inline]
+    fn draw_decal_tinted<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, tint: Color) {
         into!(pos);
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
         let topleft = normalize!(pos, screen_size);
@@ -190,14 +458,53 @@ impl DecalDraw for crate::Engine {
                 ],
                 uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
                 w: [1.0; 4],
+                tint: tint.into(),
             });
     }
-    fn draw_partial_decal<P: Into<Vf2d> + Copy>(
+
+    fn draw_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: P,
+        decal: &Decal,
+        scale: P,
+        tint: Color,
+    ) {
+        into!(scale, pos);
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let topleft = normalize!(pos, screen_size);
+        let bottomright = normalize!(
+            {
+                pos + Vf2d {
+                    x: decal.0.size.0 as f32,
+                    y: decal.0.size.1 as f32,
+                } * scale
+            },
+            screen_size
+        );
+        self.handler
+            .draw_decal_instance(px_backend::decals::DecalInstances {
+                id: decal.0.id(),
+                pos: [
+                    (topleft.x, topleft.y),         // A
+                    (topleft.x, bottomright.y),     // B
+                    (bottomright.x, bottomright.y), // C
+                    (bottomright.x, topleft.y),     // D
+                ],
+                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+                w: [1.0; 4],
+
+                tint: tint.into(),
+            });
+    }
+
+    #[inline]
+    fn draw_partial_decal_tinted<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
         source_pos: P,
         source_size: P,
+        tint: Color,
     ) {
         into!(pos, source_pos, source_size);
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
@@ -231,15 +538,19 @@ impl DecalDraw for crate::Engine {
                 ],
                 uv,
                 w: [1.0; 4],
+                tint: tint.into(),
             });
     }
-    fn draw_partial_decal_scaled<P: Into<Vf2d> + Copy>(
+
+    #[inline]
+    fn draw_partial_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
         source_pos: P,
         source_size: P,
         scale: P,
+        tint: Color,
     ) {
         into!(pos, source_pos, source_size, scale);
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
@@ -273,10 +584,17 @@ impl DecalDraw for crate::Engine {
                 ],
                 uv,
                 w: [1.0; 4],
+                tint: tint.into(),
             });
     }
 
-    fn draw_warped_decal<P: Into<Vf2d> + Copy>(&mut self, pos: [P; 4], decal: &Decal) {
+    #[inline]
+    fn draw_warped_decal_tinted<P: Into<Vf2d> + Copy>(
+        &mut self,
+        pos: [P; 4],
+        decal: &Decal,
+        tint: Color,
+    ) {
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
         let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
         let pos: [Vf2d; 4] = [
@@ -291,6 +609,7 @@ impl DecalDraw for crate::Engine {
             pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
             uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
             w: [1.0; 4],
+            tint: tint.into(),
         };
         const POINT_ONE: usize = 3;
         const POINT_TWO: usize = 0;
@@ -329,12 +648,15 @@ impl DecalDraw for crate::Engine {
             self.handler.draw_decal_instance(di);
         }
     }
-    fn draw_warped_partial_decal<P: Into<Vf2d> + Copy>(
+
+    #[inline]
+    fn draw_warped_partial_decal_tinted<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: [P; 4],
         source_pos: P,
         source_size: P,
         decal: &Decal,
+        tint: Color,
     ) {
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
         into!(source_pos, source_size);
@@ -351,6 +673,7 @@ impl DecalDraw for crate::Engine {
             pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
             uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
             w: [1.0; 4],
+            tint: tint.into(),
         };
         const POINT_ONE: usize = 3;
         const POINT_TWO: usize = 0;
@@ -398,36 +721,14 @@ impl DecalDraw for crate::Engine {
         }
     }
 
-    fn draw_explicit_decal<P: Into<Vf2d> + Copy>(
-        &mut self,
-        pos: [P; 4],
-        uv: [P; 4],
-        decal: &Decal,
-    ) {
-        let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
-        let uv: [Vf2d; 4] = [uv[0].into(), uv[1].into(), uv[2].into(), uv[3].into()];
-        let mut di = px_backend::decals::DecalInstances {
-            id: decal.0.id(),
-            pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
-            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-            w: [1.0; 4],
-        };
-        for i in 0..4 {
-            di.pos[i] = (
-                (pos[i].x / (self.size.0) as f32) * 2.0 - 1.0,
-                ((pos[i].y / (self.size.1) as f32) * 2.0 - 1.0) * -1.0,
-            );
-            di.uv[i] = (uv[i].x, uv[i].y);
-        }
-        self.handler.draw_decal_instance(di);
-    }
-
-    fn draw_rotated_decal<P: Into<Vf2d> + Copy>(
+    #[inline]
+    fn draw_rotated_decal_tinted<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
-        angle: f32,
         center: P,
+        angle: f32,
+        tint: Color,
     ) {
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
         into!(pos, center);
@@ -436,17 +737,30 @@ impl DecalDraw for crate::Engine {
         pos_arr[1] = Vf2d {x: 0.0, y:  decal.size().1 as f32} - center /* * scale*/;
         pos_arr[2] = Vf2d {x:decal.size().0 as f32, y:decal.size().1 as f32} - center/*  * scale*/;
         pos_arr[3] = Vf2d {x:decal.size().0 as f32, y: 0.0} - center /* * scale*/;
-        let (c, s) = angle.sin_cos();
-        for i in 0..4 {
-            pos_arr[i] = normalize!(
+        let (s, c) = angle.sin_cos();
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
                 {
                     pos + Vf2d {
-                        x: pos_arr[i].x * c + pos_arr[i].y * s,
-                        y: pos_arr[i].x * s - pos_arr[i].y * c,
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
                     }
                 },
                 screen_size
             );
+            // *pos_index = pos
+            //     + Vf2d {
+            //         x: pos_index.x * c - pos_index.y * s,
+            //         y: pos_index.x * s + pos_index.y * c,
+            //     };
+            // *pos_index = *pos_index * screen_size * 2.0 - Vf2d { x: 1.0, y: 1.0 };
+            // pos_index.y *= -1.0;
+            /*
+            di.pos[i] = pos + olc::vf2d(di.pos[i].x * c - di.pos[i].y * s, di.pos[i].x * s + di.pos[i].y * c);
+            di.pos[i] = di.pos[i] * vInvScreenSize * 2.0f - olc::vf2d(1.0f, 1.0f);
+            di.pos[i].y *= -1.0f;
+            di.w[i] = 1;
+            */
         }
         self.handler.draw_decal_instance(decals::DecalInstances {
             id: decal.0.id(),
@@ -458,15 +772,19 @@ impl DecalDraw for crate::Engine {
             ],
             w: [1.0; 4],
             uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            tint: tint.into(),
         });
     }
-    fn draw_rotated_decal_scaled<P: Into<Vf2d> + Copy>(
+
+    #[inline]
+    fn draw_rotated_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
-        angle: f32,
         center: P,
+        angle: f32,
         scale: P,
+        tint: Color,
     ) {
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
         into!(pos, center, scale);
@@ -479,12 +797,12 @@ impl DecalDraw for crate::Engine {
             *p = *p * scale;
         }
         let (c, s) = angle.sin_cos();
-        for i in 0..4 {
-            pos_arr[i] = normalize!(
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
                 {
                     pos + Vf2d {
-                        x: pos_arr[i].x * c + pos_arr[i].y * s,
-                        y: pos_arr[i].x * s - pos_arr[i].y * c,
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
                     }
                 },
                 screen_size
@@ -500,9 +818,12 @@ impl DecalDraw for crate::Engine {
             ],
             w: [1.0; 4],
             uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            tint: tint.into(),
         });
     }
-    fn draw_partial_rotated_decal<P: Into<Vf2d> + Copy>(
+
+    #[inline]
+    fn draw_partial_rotated_decal_tinted<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
@@ -510,6 +831,7 @@ impl DecalDraw for crate::Engine {
         center: P,
         source_pos: P,
         source_size: P,
+        tint: Color,
     ) {
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
 
@@ -528,17 +850,18 @@ impl DecalDraw for crate::Engine {
         pos_arr[2] = Vf2d {x:source_size.x, y: source_size.y } - center/*  * scale*/;
         pos_arr[3] = Vf2d {x:source_size.x, y: 0.0} - center /* * scale*/;
         let (c, s) = angle.sin_cos();
-        for i in 0..4 {
-            pos_arr[i] = normalize!(
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
                 {
                     pos + Vf2d {
-                        x: pos_arr[i].x * c + pos_arr[i].y * s,
-                        y: pos_arr[i].x * s - pos_arr[i].y * c,
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
                     }
                 },
                 screen_size
             );
         }
+
         self.handler.draw_decal_instance(decals::DecalInstances {
             id: decal.0.id(),
             pos: [
@@ -547,11 +870,14 @@ impl DecalDraw for crate::Engine {
                 (pos_arr[2].x, pos_arr[2].y),
                 (pos_arr[3].x, pos_arr[3].y),
             ],
-            w: [1.0; 4],
             uv,
+            w: [1.0; 4],
+            tint: tint.into(),
         });
     }
-    fn draw_partial_rotated_decal_scaled<P: Into<Vf2d> + Copy>(
+
+    #[inline]
+    fn draw_partial_rotated_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
         &mut self,
         pos: P,
         decal: &Decal,
@@ -560,6 +886,7 @@ impl DecalDraw for crate::Engine {
         source_pos: P,
         source_size: P,
         scaled: P,
+        tint: Color,
     ) {
         into!(pos, center, source_pos, source_size, scaled);
         let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
@@ -580,12 +907,12 @@ impl DecalDraw for crate::Engine {
             *p = *p * scaled;
         }
         let (c, s) = angle.sin_cos();
-        for i in 0..4 {
-            pos_arr[i] = normalize!(
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
                 {
                     pos + Vf2d {
-                        x: pos_arr[i].x * c + pos_arr[i].y * s,
-                        y: pos_arr[i].x * s - pos_arr[i].y * c,
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
                     }
                 },
                 screen_size
@@ -601,6 +928,7 @@ impl DecalDraw for crate::Engine {
             ],
             w: [1.0; 4],
             uv,
+            tint: tint.into(),
         });
     }
 }
