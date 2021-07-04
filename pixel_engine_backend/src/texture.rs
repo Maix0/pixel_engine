@@ -22,7 +22,7 @@ impl Texture {
         let size = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,
-            depth: 1,
+            depth_or_array_layers: 1,
         };
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             size,
@@ -65,7 +65,7 @@ impl Texture {
 
         queue.write_texture(
             // Tells wgpu where to copy the pixel data
-            wgpu::TextureCopyView {
+            wgpu::ImageCopyTextureBase {
                 texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
@@ -73,10 +73,10 @@ impl Texture {
             // The actual pixel data
             rgba,
             // The layout of the texture
-            wgpu::TextureDataLayout {
+            wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: 4 * dimensions.0,
-                rows_per_image: dimensions.1,
+                bytes_per_row: std::num::NonZeroU32::new(4 * dimensions.0),
+                rows_per_image: std::num::NonZeroU32::new(dimensions.1),
             },
             size,
         );
@@ -88,8 +88,8 @@ impl Texture {
             aspect: wgpu::TextureAspect::All,
             base_array_layer: 0,
             array_layer_count: None,
-            level_count: None,
             dimension: Some(wgpu::TextureViewDimension::D2),
+            mip_level_count: None,
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: None,
@@ -116,7 +116,7 @@ impl Texture {
     pub fn update(&self, queue: &wgpu::Queue, data: &[u8]) {
         queue.write_texture(
             // Tells wgpu where to copy the pixel data
-            wgpu::TextureCopyView {
+            wgpu::ImageCopyTextureBase {
                 texture: &self.texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
@@ -124,10 +124,10 @@ impl Texture {
             // The actual pixel data
             data,
             // The layout of the texture
-            wgpu::TextureDataLayout {
+            wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: 4 * self.size.width,
-                rows_per_image: self.size.height,
+                bytes_per_row: std::num::NonZeroU32::new(4 * self.size.width),
+                rows_per_image: std::num::NonZeroU32::new(self.size.height),
             },
             self.size,
         );

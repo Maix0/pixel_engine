@@ -30,17 +30,17 @@ impl VertexTrait for Vertex {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float3,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float3,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
                     shader_location: 2,
-                    format: wgpu::VertexFormat::Float4,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
             ],
         }
@@ -109,6 +109,8 @@ impl Context {
             .await
             .expect("Error when getting device and queue");
 
+        device.on_uncaptured_error(|error| panic!("error: {}", error));
+
         let sc_desc = wgpu::SwapChainDescriptor {
             usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
             #[cfg(target_arch = "wasm32")]
@@ -162,7 +164,7 @@ impl Context {
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
                             view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Uint,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         },
                     },
                     wgpu::BindGroupLayoutEntry {
@@ -177,7 +179,6 @@ impl Context {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-
         let main_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
@@ -212,9 +213,8 @@ impl Context {
                 entry_point: "main",
                 targets: &[wgpu::ColorTargetState {
                     format: sc_desc.format,
-                    alpha_blend: wgpu::BlendState::REPLACE,
-                    color_blend: wgpu::BlendState::REPLACE,
                     write_mask: wgpu::ColorWrite::ALL,
+                    blend: Some(wgpu::BlendState::REPLACE),
                 }],
             }),
             depth_stencil: None,
@@ -223,9 +223,11 @@ impl Context {
                 topology: wgpu::PrimitiveTopology::TriangleList, // 1.
                 strip_index_format: None,                        //
                 front_face: wgpu::FrontFace::Ccw,                // 2.
-                cull_mode: wgpu::CullMode::Back,
+                cull_mode: Some(wgpu::Face::Back),
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
+                clamp_depth: false,
+                conservative: false,
             },
             multisample: wgpu::MultisampleState {
                 count: 1,                         // 2.
@@ -298,8 +300,8 @@ impl Context {
 
             {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: &frame.output.view,
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: &frame.output.view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
