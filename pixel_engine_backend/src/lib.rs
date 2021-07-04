@@ -250,8 +250,6 @@ impl Context {
             label: Some("Render Encoder"),
         });
 
-        println!("sile");
-
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(VERTICES),
