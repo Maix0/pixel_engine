@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [dependencies]
-pixel_engine_backend = "0.4.0"
+pixel_engine_backend = "0.4.1"
 pixel_engine_draw    = "0.4.0"
 futures = "0.3.13"
 web-sys = { version = "*", optional = true }

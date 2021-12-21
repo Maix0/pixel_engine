@@ -31,14 +31,14 @@ impl Texture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
+            usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
             label: Some("texture"),
         });
 
         // let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         //     label: None,
         //     contents: &rgba,
-        //     usage: wgpu::BufferUsage::COPY_SRC,
+        //     usage: wgpu::BufferUsages::COPY_SRC,
         // });
 
         // let mut encoder =
@@ -66,6 +66,7 @@ impl Texture {
         queue.write_texture(
             // Tells wgpu where to copy the pixel data
             wgpu::ImageCopyTextureBase {
+                aspect: wgpu::TextureAspect::All,
                 texture: &texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
@@ -83,7 +84,7 @@ impl Texture {
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
             label: None,
-            format: Some(wgpu::TextureFormat::Rgba8Unorm),
+            format: Some(wgpu::TextureFormat::Rgba8UnormSrgb),
             base_mip_level: 0,
             aspect: wgpu::TextureAspect::All,
             base_array_layer: 0,
@@ -101,7 +102,7 @@ impl Texture {
             mipmap_filter: wgpu::FilterMode::Nearest,
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
-            compare: Some(wgpu::CompareFunction::Always),
+            compare: None,
             border_color: None,
             anisotropy_clamp: None,
         });
@@ -117,6 +118,7 @@ impl Texture {
         queue.write_texture(
             // Tells wgpu where to copy the pixel data
             wgpu::ImageCopyTextureBase {
+                aspect: wgpu::TextureAspect::All,
                 texture: &self.texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,

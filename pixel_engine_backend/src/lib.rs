@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 pub use winit;
 use winit::window::Window;
@@ -8,7 +9,7 @@ pub trait VertexTrait {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug /*, Pod, Zeroable*/)]
 pub(crate) struct Vertex {
     position: [f32; 3],
     // UV + q for warped Decal
@@ -17,15 +18,15 @@ pub(crate) struct Vertex {
     tint: [f32; 4],
 }
 
-unsafe impl bytemuck::Pod for Vertex {}
-unsafe impl bytemuck::Zeroable for Vertex {}
+unsafe impl Pod for Vertex {}
+unsafe impl Zeroable for Vertex {}
 
 impl VertexTrait for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         use std::mem;
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
+            step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
                     offset: 0,
@@ -69,8 +70,7 @@ pub struct Context {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    sc_desc: wgpu::SwapChainDescriptor,
-    swap_chain: wgpu::SwapChain,
+    config: wgpu::SurfaceConfiguration,
 
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
@@ -85,7 +85,7 @@ pub struct Context {
 impl Context {
     pub async fn new(window: &Window, px_size: (u32, u32, u32)) -> Self {
         let size = window.inner_size();
-        let instance = wgpu::Instance::new(wgpu::BackendBit::all());
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
 
         let surface = unsafe { instance.create_surface(window) };
 
@@ -93,6 +93,7 @@ impl Context {
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
             })
             .await
             .expect("Error when requesting Adapter");
@@ -109,19 +110,17 @@ impl Context {
             .await
             .expect("Error when getting device and queue");
 
-        device.on_uncaptured_error(|error| panic!("error: {}", error));
+        device.on_uncaptured_error(|error| panic!("[WGPU Error] {}", error));
 
-        let sc_desc = wgpu::SwapChainDescriptor {
-            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-            #[cfg(target_arch = "wasm32")]
-            format: wgpu::TextureFormat::Rgba8Unorm,
-            #[cfg(not(target_arch = "wasm32"))]
-            format: wgpu::TextureFormat::Bgra8Unorm,
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface.get_preferred_format(&adapter).unwrap(),
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
         };
-        let swap_chain = device.create_swap_chain(&surface, &sc_desc);
+
+        surface.configure(&device, &config);
 
         let vs_raw = include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -131,18 +130,17 @@ impl Context {
             env!("CARGO_MANIFEST_DIR"),
             "/shaders/shader.frag.spv"
         ));
-        let vs_data = wgpu::util::make_spirv(&vs_raw[..]);
-        let fs_data = wgpu::util::make_spirv(&fs_raw[..]);
+
+        let vs_data: &[u32] = bytemuck::cast_slice(vs_raw);
+        let fs_data: &[u32] = bytemuck::cast_slice(fs_raw);
 
         let vs_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("vs_module"),
-            source: vs_data,
-            flags: wgpu::ShaderFlags::empty(),
+            source: wgpu::ShaderSource::SpirV(std::borrow::Cow::from(vs_data)),
         });
         let fs_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("fs_module"),
-            source: fs_data,
-            flags: wgpu::ShaderFlags::empty(),
+            source: wgpu::ShaderSource::SpirV(std::borrow::Cow::from(fs_data)),
         });
 
         let main_texture = texture::Texture::from_bytes(
@@ -160,7 +158,7 @@ impl Context {
                     wgpu::BindGroupLayoutEntry {
                         count: None,
                         binding: 0,
-                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Texture {
                             multisampled: false,
                             view_dimension: wgpu::TextureViewDimension::D2,
@@ -169,11 +167,8 @@ impl Context {
                     },
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
-                        visibility: wgpu::ShaderStage::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler {
-                            comparison: true,
-                            filtering: true,
-                        },
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
                 ],
@@ -212,12 +207,13 @@ impl Context {
                 module: &fs_module,
                 entry_point: "main",
                 targets: &[wgpu::ColorTargetState {
-                    format: sc_desc.format,
-                    write_mask: wgpu::ColorWrite::ALL,
+                    format: wgpu::TextureFormat::Bgra8UnormSrgb,
+                    write_mask: wgpu::ColorWrites::ALL,
                     blend: Some(wgpu::BlendState::REPLACE),
                 }],
             }),
             depth_stencil: None,
+            multiview: None,
 
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList, // 1.
@@ -226,7 +222,7 @@ impl Context {
                 cull_mode: Some(wgpu::Face::Back),
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
-                clamp_depth: false,
+                unclipped_depth: false,
                 conservative: false,
             },
             multisample: wgpu::MultisampleState {
@@ -255,16 +251,16 @@ impl Context {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsage::COPY_DST
-                | wgpu::BufferUsage::VERTEX
-                | wgpu::BufferUsage::COPY_SRC,
+            usage: wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::VERTEX
+                | wgpu::BufferUsages::COPY_SRC,
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("index_buffer"),
             contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsage::COPY_DST
-                | wgpu::BufferUsage::INDEX
-                | wgpu::BufferUsage::COPY_SRC,
+            usage: wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::INDEX
+                | wgpu::BufferUsages::COPY_SRC,
         });
         queue.submit(std::iter::once(encoder.finish()));
         let num_indices = INDICES.len() as u32;
@@ -274,10 +270,9 @@ impl Context {
             surface,
             device,
             queue,
-            sc_desc,
-            swap_chain,
             render_pipeline,
             vertex_buffer,
+            config,
             index_buffer,
             num_indices,
             main_bind_group,
@@ -289,7 +284,7 @@ impl Context {
 
     pub fn render(&mut self, data: &[u8]) {
         self.main_texture.update(&self.queue, data);
-        if let Ok(frame) = self.swap_chain.get_current_frame() {
+        if let Ok(frame) = self.surface.get_current_texture() {
             //.expect("Timeout getting texture");
 
             let mut encoder = self
@@ -299,9 +294,12 @@ impl Context {
                 });
 
             {
+                let view = frame
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: &frame.output.view,
+                        view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
@@ -322,6 +320,7 @@ impl Context {
                 render_pass.draw_decals(&mut self.dcm, &mut self.device, &mut self.queue);
             }
             self.queue.submit(std::iter::once(encoder.finish()));
+            frame.present();
         } else {
             println!("Frame timeout !");
         }

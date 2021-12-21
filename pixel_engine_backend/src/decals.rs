@@ -36,27 +36,27 @@ impl DecalContextManager {
             mapped_at_creation: false,
             label: None,
             size: crate::VERTEX_BUFFER_SIZE,
-            usage: wgpu::BufferUsage::COPY_DST
-                | wgpu::BufferUsage::VERTEX
-                | wgpu::BufferUsage::COPY_SRC,
+            usage: wgpu::BufferUsages::COPY_DST
+                | wgpu::BufferUsages::VERTEX
+                | wgpu::BufferUsages::COPY_SRC,
         });
         let buffer_index = {
             let b = device.create_buffer(&wgpu::BufferDescriptor {
                 mapped_at_creation: false,
                 label: None,
                 size: std::mem::size_of::<[u16; 6]>() as u64,
-                usage: wgpu::BufferUsage::COPY_DST
-                    | wgpu::BufferUsage::INDEX
-                    | wgpu::BufferUsage::COPY_SRC,
+                usage: wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::INDEX
+                    | wgpu::BufferUsages::COPY_SRC,
             });
             encoder.copy_buffer_to_buffer(
                 &{
                     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: None,
                         contents: bytemuck::cast_slice(crate::INDICES),
-                        usage: wgpu::BufferUsage::INDEX
-                            | wgpu::BufferUsage::COPY_DST
-                            | wgpu::BufferUsage::COPY_SRC,
+                        usage: wgpu::BufferUsages::INDEX
+                            | wgpu::BufferUsages::COPY_DST
+                            | wgpu::BufferUsages::COPY_SRC,
                     })
                 },
                 0,
@@ -204,7 +204,7 @@ where
                                 tint: decal_instance.tint,
                             },
                         ]),
-                        usage: wgpu::BufferUsage::COPY_DST | wgpu::BufferUsage::COPY_SRC,
+                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
                     }),
                     0,
                     &dcm.buffer_vertex,
