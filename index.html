@@ -15,13 +15,14 @@
             bank = s;
         }
         
-        let run = "simple";
+        let run = "lines";
         let ns = url.searchParams.get("run");
         if (s !== null && s !== undefined) {
             run = ns;
         }
         import(`./wasm/${bank}.js`).then( async (mod) => {
             let wasm = await mod.default();
+            console.log(wasm)
             wasm[run]();
         })
     </script>

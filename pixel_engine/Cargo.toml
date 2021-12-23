@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -8,9 +8,6 @@ description = "A recreation of the olcPixelEngine by javidx9 written in Rust"
 repository = "https://github.com/maix0/pixel_engine"
 exclude = ["Cargo.lock"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-crate-type = ["cdylib", "rlib"]
 
 
 
