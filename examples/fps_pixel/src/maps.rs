@@ -40,6 +40,10 @@ impl Tile {
         self.sprite = Some(Sprite::load_from_file(&path)?);
         Ok(())
     }
+    pub fn load_from_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
+        self.sprite = Some(Sprite::load_image_bytes(bytes)?);
+        Ok(())
+    }
 }
 
 pub struct WorldConstructor {
@@ -63,11 +67,15 @@ impl WorldConstructor {
             let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
             let mut data = String::new();
             file.read_to_string(&mut data).map_err(|e| e.to_string())?;
-            let world = ron::de::from_str::<'_, World>(&data).map_err(|e| e.to_string())?;
-            Ok(WorldConstructor::from_world(world))
+            WorldConstructor::load_str(&data)
         } else {
             Ok(WorldConstructor::new())
         }
+    }
+
+    pub fn load_str(data: &str) -> Result<WorldConstructor, String> {
+        let world = ron::de::from_str::<'_, World>(data).map_err(|e| e.to_string())?;
+        Ok(WorldConstructor::from_world(world))
     }
     pub fn from_world(world: World) -> WorldConstructor {
         //let mut temp_map = world.map.split();
@@ -165,9 +173,22 @@ impl World {
             .chars()
             .nth((y * self.map.w as i64 + x) as usize)
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn load_all(&mut self) -> Result<(), String> {
         for tile in &mut self.tiles {
             tile.1.load()?;
+        }
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn load_all<'s, 'b>(
+        &mut self,
+        data: std::collections::HashMap<&'s str, &'b [u8]>,
+    ) -> Result<(), String> {
+        for tile in &mut self.tiles {
+            tile.1.load_from_bytes(data[tile.1.sprite_path.as_str()])?;
         }
         Ok(())
     }

@@ -22,23 +22,50 @@ impl Player {
             angle: 0_f64,
             x: 2_f64,
             y: 2_f64,
-            fov: 3.14159_f64 / 4.0_f64,
+            fov: PI / 4.0_f64,
             depth: 16.0_f64,
             speed: 5.0_f64,
         }
     }
 }
+#[cfg(target_arch = "wasm32")]
+macro_rules! load_spr {
+    ($hmap:expr, $($spr_path:literal,)*) => {
+        $($hmap.insert($spr_path,  &include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), $spr_path))[..]);)*
+    };
+}
 
 async fn init() {
+    #[cfg(target_arch = "wasm32")]
+    let mut spr_data = std::collections::HashMap::with_capacity(16);
+    #[cfg(target_arch = "wasm32")]
+    load_spr!(
+        spr_data,
+        "./maps/spr/black_wall.png",
+        "./maps/spr/dev.png",
+        "./maps/spr/dev2.png",
+    );
+
     let fac = 5;
-    let game = EngineWrapper::new("Pixel FPS".to_owned(), (120 * fac, 60 * fac, 10 / fac));
+    let game = EngineWrapper::new("Pixel FPS".to_owned(), (120 * fac, 60 * fac, 10 / fac)).await;
     // =======================
     let viewport = (game.size.0, 7 * game.size.1 / 8);
     let mut player = Player::new();
+    #[cfg(not(target_arch = "wasm32"))]
     let mut map = maps::WorldConstructor::load_file(String::from("maps/dev.map"))
         .unwrap()
         .to_world();
+    #[cfg(target_arch = "wasm32")]
+    let mut map = maps::WorldConstructor::load_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/maps/dev.map"
+    )))
+    .unwrap()
+    .to_world();
+    #[cfg(not(target_arch = "wasm32"))]
     map.load_all().unwrap();
+    #[cfg(target_arch = "wasm32")]
+    map.load_all(spr_data).unwrap();
     let mut current_tile: char = '#';
 
     // =======================
@@ -130,13 +157,11 @@ async fn init() {
                     let test_angle =
                         (test_point_y as f64 - mid_y).atan2(test_point_x as f64 - mid_x);
 
-                    if test_angle >= -PI * 0.25_f64 && test_angle < PI * 0.25_f64 {
+                    if (-PI * 0.25_f64..PI * 0.25_f64).contains(&test_angle) {
                         sample_x = test_point_y - (test_y as f64);
-                    } else if test_angle >= PI * 0.25_f64 && test_angle < PI * 0.75_f64 {
+                    } else if (-PI * 0.75_f64..-PI * 0.25_f64).contains(&test_angle) {
                         sample_x = test_point_x - (test_x as f64);
-                    } else if test_angle < -PI * 0.25_f64 && test_angle >= -PI * 0.75_f64 {
-                        sample_x = test_point_x - (test_x as f64);
-                    } else if test_angle >= PI * 0.75_f64 || test_angle < -PI * 0.75_f64 {
+                    } else if !(-PI * 0.75_f64..PI * 0.75_f64).contains(&test_angle) {
                         sample_x = test_point_y - (test_y as f64);
                     } else {
                         sample_x = -1.0_f64
@@ -215,11 +240,11 @@ async fn init() {
             [255, 255, 255].into(),
             &format!("{:.5}", game.elapsed),
         );
-        return Ok(true);
+        Ok(true)
     });
 }
 
-fn main() {
+pub fn main() {
     #[cfg(target_arch = "wasm32")]
     {
         use std::panic;

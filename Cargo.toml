@@ -1,4 +1,5 @@
 [workspace]
+resolver ="2"
 members=[
     "pixel_engine",
     "pixel_engine_backend",
@@ -6,7 +7,8 @@ members=[
     "examples/fake_mode7",
     "examples/intersection",
     "examples/fps_pixel",
-    "examples/decal_dungeons"
+    "examples/decal_dungeons",
+    "examples/web"
     ]
 
 [patch.crates-io]

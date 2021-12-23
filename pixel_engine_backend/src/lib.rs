@@ -102,7 +102,10 @@ impl Context {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     features: wgpu::Features::empty(),
+                    #[cfg(not(target_arch = "wasm32"))]
                     limits: Default::default(),
+                    #[cfg(target_arch = "wasm32")]
+                    limits: wgpu::Limits::downlevel_webgl2_defaults(),
                     label: Some("device_request"),
                 },
                 None,
@@ -207,7 +210,10 @@ impl Context {
                 module: &fs_module,
                 entry_point: "main",
                 targets: &[wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Bgra8UnormSrgb,
+                    #[cfg(target_arch = "wasm32")]
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    #[cfg(not(target_arch = "wasm32"))]
+                    format: wgpu::TextureFormat::Bgra8Unorm,
                     write_mask: wgpu::ColorWrites::ALL,
                     blend: Some(wgpu::BlendState::REPLACE),
                 }],

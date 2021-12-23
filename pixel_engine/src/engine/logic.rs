@@ -182,13 +182,12 @@ impl EngineWrapper {
                 _ => {}
             }
             if redraw {
-                engine.elapsed = (std::time::SystemTime::now()
-                    .duration_since(engine.timer)
-                    .map_err(|err| err.to_string())
-                    .unwrap())
+                engine.elapsed = (instant::Instant::now()
+                    .checked_duration_since(engine.timer)
+                    .expect("Error with timer"))
                 .as_secs_f64();
                 // End
-                engine.timer = std::time::SystemTime::now();
+                engine.timer = instant::Instant::now();
                 engine.frame_timer += engine.elapsed;
                 engine.frame_count += 1;
                 if engine.frame_timer > 1.0 {
@@ -236,7 +235,7 @@ pub struct Engine {
     /* TIME */
     /// Time between current frame and last frame, usefull for movement's calculations
     pub elapsed: f64,
-    timer: std::time::SystemTime,
+    timer: instant::Instant,
     frame_count: u64,
     frame_timer: f64,
 
@@ -313,7 +312,7 @@ impl Engine {
             title,
 
             /* TIME */
-            timer: std::time::SystemTime::now(),
+            timer: instant::Instant::now(),
             frame_count: 0u64,
             frame_timer: 0f64,
             elapsed: 0f64,

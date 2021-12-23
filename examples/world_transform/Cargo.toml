@@ -1,0 +1,11 @@
+[package]
+name = "world_transform"
+version = "0.1.0"
+authors = ["Maix0 <maix522@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
+pixel_engine="0.4.0"

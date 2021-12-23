@@ -8,6 +8,9 @@ edition = "2018"
 [[bin]]
 name="map-edit"
 
+[lib]
+path= "src/main.rs"
+
 [dependencies]
 pixel_engine = "0.3.0"
 ron = "0.6.0"
