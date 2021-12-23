@@ -432,6 +432,6 @@ fn normalize(source: Keycode) -> String {
     .to_owned()
 }
 fn main() {
-    engine::launch(init)
+    engine::launch(init())
 }
 

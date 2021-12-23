@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maix's pixel engine examples</title>
+</head>
+<body>
+    <script>
+        let bank = "simple";
+        let url =new  URL(window.location.href);
+        let s = url.searchParams.get("bank");
+        if (s !== null && s !== undefined) {
+            bank = s;
+        }
+        
+        let run = "simple";
+        let ns = url.searchParams.get("run");
+        if (s !== null && s !== undefined) {
+            run = ns;
+        }
+        import(`./wasm/${bank}.js`).then( async (mod) => {
+            let wasm = await mod.default();
+            wasm[run]();
+        })
+    </script>
+</body>
+</html>

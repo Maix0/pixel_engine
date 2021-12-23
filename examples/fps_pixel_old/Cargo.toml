@@ -5,11 +5,17 @@ authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+
+
 [[bin]]
 name="map-edit"
 
 [dependencies]
-pixel_engine = "0.4.0"
+pixel_engine = "0.4.1"
 ron = "0.6.0"
 serde = "1.0.114"
 

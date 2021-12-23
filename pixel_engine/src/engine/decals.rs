@@ -1,6 +1,6 @@
-use pixel_engine_draw::graphics::Color;
 use px_backend::decals;
-
+use px_draw::graphics::Color;
+use px_draw::vector2::Vf2d;
 pub struct Decal(pub(crate) decals::Decal);
 
 impl Decal {
@@ -18,7 +18,7 @@ impl std::fmt::Debug for Decal {
         f.debug_struct("Decal").field("0", &"Inner Decal").finish()
     }
 }
-use px_draw::vector2::Vf2d;
+
 // Screen Space to normalized Space ((0,0)-game.size => (-1.0,-1.0)-(1.0,1.0))
 // With the correct axis
 

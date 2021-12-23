@@ -8,4 +8,4 @@ edition = "2018"
 
 
 [dependencies]
-pixel_engine="0.4.0"
+pixel_engine="0.4.1"

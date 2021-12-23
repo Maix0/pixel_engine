@@ -213,7 +213,7 @@ impl Context {
                     #[cfg(target_arch = "wasm32")]
                     format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     #[cfg(not(target_arch = "wasm32"))]
-                    format: wgpu::TextureFormat::Bgra8Unorm,
+                    format: wgpu::TextureFormat::Bgra8UnormSrgb,
                     write_mask: wgpu::ColorWrites::ALL,
                     blend: Some(wgpu::BlendState::REPLACE),
                 }],
