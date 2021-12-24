@@ -175,6 +175,6 @@ pub async fn init() {
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-pub fn intersection() {
+pub fn main() {
     pixel_engine::launch(init());
 }

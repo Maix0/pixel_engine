@@ -3,6 +3,13 @@ extern crate world_transform;
 use px::traits::*;
 use px::vector2::*;
 
+
+
+#[cfg(target_arch = "wasm32")]
+extern crate wasm_bindgen;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 async fn init() {
     let game = px::EngineWrapper::new("World Transform".to_owned(), (500, 500, 1)).await;
 
@@ -46,20 +53,21 @@ async fn init() {
                 game.draw_line(start_pixel, end_pixel, px::Color::WHITE);
             }
         }
-
-        let center_selected = transform.world_to_screen(cursor);
+        
+        /*
+        let center_selected = transform.world_to_screen();
         let cr = 0.3 * transform.scale().x;
 
         game.fill_circle(center_selected, cr as u32, px::Color::RED);
 
         if game.get_mouse_btn(px::inputs::MouseBtn::Left).released {
             selected_cell = center_selected;
-        }
+        }*/
 
         Ok(true)
     });
 }
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-pub fn main() {
+pub fn world_transform() {
     px::launch(init())
 }

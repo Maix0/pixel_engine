@@ -1,3 +1,3 @@
 fn main() {
-    intersection::intersection();
+    intersection::main();
 }

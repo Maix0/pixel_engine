@@ -1,6 +1,13 @@
 use std::collections::HashMap;
 extern crate pixel_engine as px;
 extern crate world_transform;
+
+
+#[cfg(target_arch = "wasm32")]
+extern crate wasm_bindgen;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 use px::{
     traits::*,
     vector2::{Vf2d, Vu2d},
@@ -30,6 +37,7 @@ impl FloatRange {
         }
     }
 }
+/*
 
 type ShapeID = u16;
 struct ShapeIDGen {
@@ -285,7 +293,10 @@ async fn init() {
 
         Ok(true)
     });
-}
-pub fn main() {
-    px::launch(init())
+}*/
+
+#[cfg_attr(target_arch="wasm32", wasm_bindgen)]
+pub fn cad() {
+    //px::launch(init())
+    
 }

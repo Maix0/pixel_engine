@@ -8,8 +8,9 @@ members=[
     "examples/intersection",
     "examples/fps_pixel",
     "examples/decal_dungeons",
-    # "examples/web",
-    "examples/simple"
+    "examples/simple",
+	"examples/world_transform",
+	"examples/world_transform_examples"
     ]
 
 [patch.crates-io]

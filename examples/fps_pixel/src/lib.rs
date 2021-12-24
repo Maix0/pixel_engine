@@ -37,7 +37,7 @@ impl Player {
 #[cfg(target_arch = "wasm32")]
 macro_rules! load_spr {
     ($hmap:expr, $($spr_path:literal,)*) => {
-        $($hmap.insert($spr_path,  &include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), $spr_path))[..]);)*
+        $($hmap.insert($spr_path,  &include_bytes!(concat!(concat!(env!("CARGO_MANIFEST_DIR"), "/"), $spr_path))[..]);)*
     };
 }
 
@@ -251,6 +251,6 @@ async fn init() {
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-pub fn fps_pixel() {
+pub fn main() {
     pixel_engine::launch(init());
 }
