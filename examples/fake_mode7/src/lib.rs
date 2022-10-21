@@ -8,22 +8,29 @@ use wasm_bindgen::prelude::*;
 use engine::traits::*;
 async fn init() {
     let game = engine::EngineWrapper::new("Mode 7".to_owned(), (650 * 2, 350 * 2, 1)).await;
-    #[cfg(not(target_arch="wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     let track_spr =
         engine::graphics::Sprite::load_from_file(&std::path::Path::new("spr/mariocircuit-1.png"))
             .unwrap();
-    #[cfg(not(target_arch="wasm32"))]
+    #[cfg(not(target_arch = "wasm32"))]
     let track_layout_spr = engine::graphics::Sprite::load_from_file(&std::path::Path::new(
         "spr/layout-mariocircuit-1.png",
     ))
     .unwrap();
 
+    #[cfg(target_arch = "wasm32")]
+    let track_spr = engine::graphics::Sprite::load_image_bytes(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/spr/mariocircuit-1.png"
+    )))
+    .unwrap();
+    #[cfg(target_arch = "wasm32")]
+    let track_layout_spr = engine::graphics::Sprite::load_image_bytes(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/spr/layout-mariocircuit-1.png"
+    )))
+    .unwrap();
 
-    #[cfg(target_arch="wasm32")]
-    let track_spr = engine::graphics::Sprite::load_image_bytes(include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/spr/mariocircuit-1.png"))).unwrap();
-    #[cfg(target_arch="wasm32")]
-    let track_layout_spr = engine::graphics::Sprite::load_image_bytes(include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/spr/layout-mariocircuit-1.png"))).unwrap();
-    
     let mut world = (1.02_f64, 1.02_f64);
     let mut world_a = 0.1_f64;
     let mut near = 0.005_f64;
@@ -211,7 +218,7 @@ async fn init() {
     });
 }
 
-#[cfg_attr(target_arch="wasm32", wasm_bindgen)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn main() {
     engine::launch(init());
 }

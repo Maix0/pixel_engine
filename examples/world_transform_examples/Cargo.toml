@@ -10,9 +10,9 @@ crate-type = ["cdylib", "rlib"]
 
 
 [dependencies]
-pixel_engine= "0.4.1"
+pixel_engine= "0.4.2"
 world_transform = {path="../world_transform"}
 
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.78"
+wasm-bindgen = "0.2.81"

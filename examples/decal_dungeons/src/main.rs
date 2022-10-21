@@ -52,10 +52,10 @@ impl From<(f64, f64, f64)> for Vec3 {
 fn create_select_cube() -> Sprite {
     let mut spr = Sprite::new(32, 32);
     let alpha = [255, 128 + 64, 128, 64];
-    for x in 0..spr.width {
+    for x in 0..spr.width() {
         for i in 0..4usize {
             spr.set_pixel(x, i as u32, [255, 255, 0, alpha[i]].into());
-            spr.set_pixel(x, spr.height - 1 - i as u32, [255, 255, 0, alpha[i]].into());
+            spr.set_pixel(x, spr.height() - 1 - i as u32, [255, 255, 0, alpha[i]].into());
         }
     }
     spr

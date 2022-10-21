@@ -3,8 +3,6 @@ extern crate world_transform;
 use px::traits::*;
 use px::vector2::*;
 
-
-
 #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
 #[cfg(target_arch = "wasm32")]
@@ -13,7 +11,7 @@ use wasm_bindgen::prelude::*;
 async fn init() {
     let game = px::EngineWrapper::new("World Transform".to_owned(), (500, 500, 1)).await;
 
-    let mut selected_cell: Vi2d = (0, 0).into();
+    let _selected_cell: Vi2d = (0, 0).into();
 
     let mut transform = world_transform::Transform::new(&game, (1f32, 1f32).into());
 
@@ -53,7 +51,7 @@ async fn init() {
                 game.draw_line(start_pixel, end_pixel, px::Color::WHITE);
             }
         }
-        
+
         /*
         let center_selected = transform.world_to_screen();
         let cr = 0.3 * transform.scale().x;

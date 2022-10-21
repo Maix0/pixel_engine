@@ -9,13 +9,13 @@ extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 async fn init() {
     let mut game = px::EngineWrapper::new("Decal".to_owned(), (50, 50, 10)).await;
-    let mut spr = px::graphics::Sprite::new_with_color(10, 10, [1.0, 0.0, 0.0, 1.0].into());
+    let mut spr = px::graphics::Sprite::new_with_color(10, 10, [1.0, 0.0, 0.0, 1.0f32].into());
     let mut draw_type: u8 = 1;
     let mut sub_draw_type: u8 = 1;
     let mut sub_draw_max: u8 = 4;
     let mut angle = 0.0;
-    for y in (0..spr.height).step_by(3) {
-        for x in (0..spr.width).step_by(3) {
+    for y in (0..spr.height()).step_by(3) {
+        for x in (0..spr.width()).step_by(3) {
             spr.set_pixel(x + 0, y, Color::WHITE);
             spr.set_pixel(x + 1, y, Color::BLUE);
             spr.set_pixel(x + 2, y, Color::MAGENTA);

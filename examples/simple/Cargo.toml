@@ -13,9 +13,25 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 
-pixel_engine = "0.4.1"
-rand = "0.8.4"
+pixel_engine = "0.4.2"
+rand = "0.8.5"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.78"
-getrandom= {version="0.2.3", features=["js"]}
+wasm-bindgen = "0.2.81"
+getrandom= { version = "0.2.7", features = ["js"] }
+
+
+[target.'cfg(target_os = "android")'.dependencies]
+ndk-glue = "0.6.2"
+
+
+[package.metadata.android]
+# Specifies the package property of the manifest.
+package = "me.maix.pixel_engine_simple"
+
+# Specifies the array of targets to build for.
+build_targets = [ "aarch64-linux-android" ]
+
+# Name for final APK file.
+# Defaults to package name.
+apk_name = "PixelEngineSimpleTest"

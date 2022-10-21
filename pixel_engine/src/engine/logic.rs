@@ -1,9 +1,10 @@
-//use super::handler::GlHandler;
 use super::decals;
 use super::inputs::{self, Input, KeySet, Mouse, MouseBtn, MouseWheel};
-use super::screen::DrawData;
 use super::Sprite;
+use pixel_engine_draw::traits::SmartDrawingTrait;
+use px_draw::graphics::DrawingSprite;
 
+use pixel_engine_draw::vector2::Vu2d;
 use px_backend::winit::{
     self,
     event::{Event, WindowEvent},
@@ -16,7 +17,7 @@ pub struct EngineWrapper(Option<Engine>);
 impl std::ops::Deref for EngineWrapper {
     type Target = Engine;
     fn deref(&self) -> &Self::Target {
-        &self.0.as_ref().expect("Pannic while deref EngineWrapper")
+        self.0.as_ref().expect("Pannic while deref EngineWrapper")
     }
 }
 
@@ -208,7 +209,7 @@ impl EngineWrapper {
                     }
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                engine.handler.render(&engine.screen.get_raw());
+                engine.handler.render(&engine.screen.get_ref().get_raw());
                 redraw = false;
                 redraw_last_frame = true;
             }
@@ -240,7 +241,7 @@ pub struct Engine {
     frame_timer: f64,
 
     /* BACKEND */
-    pub(crate) screen: Sprite,
+    pub(crate) screen: DrawingSprite<Sprite>,
     pub(crate) handler: px_backend::Context,
     k_pressed: std::collections::HashSet<inputs::Key>,
     k_held: std::collections::HashSet<inputs::Key>,
@@ -248,7 +249,6 @@ pub struct Engine {
     mouse: Mouse,
     event_loop: Option<winit::event_loop::EventLoop<()>>,
     window: winit::window::Window,
-    pub(crate) draw_data: DrawData,
 }
 impl std::fmt::Debug for Engine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -318,7 +318,7 @@ impl Engine {
             elapsed: 0f64,
             /* BACKEND */
             handler,
-            screen: Sprite::new(size.0, size.1),
+            screen: DrawingSprite::new(Sprite::new(size.0, size.1)),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
@@ -328,7 +328,6 @@ impl Engine {
                 window
             },
             event_loop: Some(event_loop),
-            draw_data: DrawData::new(),
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
@@ -338,9 +337,8 @@ impl Engine {
         futures::executor::block_on(Self::new(title, size))
     }
     /// Return the current Target size in pixel
-    pub fn size(&self) -> (u32, u32) {
-        use px_draw::traits::ScreenTrait;
-        self.get_size()
+    pub fn size(&self) -> Vu2d {
+        self.screen.get_size()
     }
 
     /// Get The status of a key

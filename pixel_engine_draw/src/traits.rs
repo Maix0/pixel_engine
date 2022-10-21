@@ -1,24 +1,28 @@
 use super::graphics::{Color, PixelMode, Sprite};
-use super::vector2::Vi2d;
+use super::vector2::*;
+
+use crate::graphics::DrawSpriteTrait;
+
 macro_rules! impl_trait {
     ($trait:ident) => {
-        impl<T: ScreenTrait> $trait for T {}
+        impl<T: SmartDrawingTrait> $trait for T {}
     };
 }
+
 ///The Basic Drawing Trait
 ///All that is needed to draw one pixel one the target
-pub trait ScreenTrait {
+pub trait SmartDrawingTrait: DrawSpriteTrait {
     /// Get the size of the target
-    fn get_size(&self) -> (u32, u32);
+    fn get_size(&self) -> Vu2d;
     /// Get The textsheet (A [`Sprite`])
-    fn get_textsheet(&self) -> &Sprite;
-    /// Clear the Screen With the given [`Color`]
+    fn get_textsheet(&self) -> &'static Sprite;
+    /// Clear the Sprite With the given [`Color`]
     fn clear(&mut self, col: Color);
     /// Set the pixel data at the given coordinates to the given Color
     /// Will use the current [`PixelMode`]
     fn draw<P: Into<Vi2d>>(&mut self, pos: P, col: Color);
     /// Get the Pixel Data at the given coordinates
-    fn get_pixel<P: Into<Vi2d>>(&self, pos: P) -> Color;
+    fn get_pixel<P: Into<Vi2d>>(&self, pos: P) -> Option<Color>;
     /// Return the [`PixelMode`]
     fn get_pixel_mode(&self) -> PixelMode;
     /// Set the [`PixelMode`]
@@ -31,7 +35,7 @@ pub trait ScreenTrait {
     fn set_blend_factor(&mut self, f: f32);
 }
 
-pub trait DottedShapeTrait: ScreenTrait {
+pub trait DottedShapeTrait: SmartDrawingTrait {
     /// Draw a dotted line
     fn draw_line_dotted<P: Into<Vi2d>>(&mut self, p1: P, p2: P, col: Color, mut pattern: u32) {
         let mut rol = || {
@@ -81,10 +85,8 @@ pub trait DottedShapeTrait: ScreenTrait {
                 let mut y = y0;
 
                 for x in x0..x1 {
-                    if x >= 0 && y >= 0 {
-                        if rol() {
-                            self.draw((x, y), col);
-                        }
+                    if x >= 0 && y >= 0 && rol() {
+                        self.draw((x, y), col);
                     }
                     if d > 0 {
                         y += yi;
@@ -108,10 +110,8 @@ pub trait DottedShapeTrait: ScreenTrait {
                 let mut x = x0;
 
                 for y in y0..=y1 {
-                    if x >= 0 && y >= 0 {
-                        if rol() {
-                            self.draw((x, y), col);
-                        }
+                    if x >= 0 && y >= 0 && rol() {
+                        self.draw((x, y), col);
                     }
                     if d > 0 {
                         x += xi;
@@ -155,8 +155,8 @@ pub trait DottedShapeTrait: ScreenTrait {
 }
 
 /// A trait that regroups all the Shapes Drawing
-/// You don't need to implement anything other that [`ScreenTrait`] to use it
-pub trait ShapesTrait: ScreenTrait {
+/// You don't need to implement anything other that [`DrawSpriteTrait`] to use it
+pub trait ShapesTrait: SmartDrawingTrait {
     /// Draw text to the screen
     /// `scale` must be >= 1
     /// The textsize will be equal to `scale * 8` for the height and `scale * 8 * text.len()` for
@@ -518,7 +518,7 @@ pub trait ShapesTrait: ScreenTrait {
     }
 }
 /// A trait that will handle the drawing of Sprite onto the Target
-pub trait SpriteTrait: ScreenTrait {
+pub trait SpriteTrait: SmartDrawingTrait {
     /// Draw a Sprite with the top left corner at `(x, y)`
     /// the flip arguement will allow fliping of the axis
     /// flip: (horizontal, vertical)
@@ -536,18 +536,18 @@ pub trait SpriteTrait: ScreenTrait {
         let mut fx: i32;
         let mut fy: i32;
         if flip.0 {
-            fxs = sprite.width as i32 - 1;
+            fxs = sprite.width() as i32 - 1;
             fxm = -1;
         }
         if flip.1 {
-            fys = sprite.height as i32 - 1;
+            fys = sprite.height() as i32 - 1;
             fym = -1;
         }
         if scale > 1 {
             fx = fxs;
-            for i in 0..(sprite.width as i32) {
+            for i in 0..(sprite.width() as i32) {
                 fy = fys;
-                for j in 0..(sprite.height as i32) {
+                for j in 0..(sprite.height() as i32) {
                     for is in 0..(scale as i32) {
                         for js in 0..(scale as i32) {
                             self.draw(
@@ -562,9 +562,9 @@ pub trait SpriteTrait: ScreenTrait {
             }
         } else {
             fx = fxs;
-            for i in 0..(sprite.width as i32) {
+            for i in 0..(sprite.width() as i32) {
                 fy = fys;
-                for j in 0..(sprite.height as i32) {
+                for j in 0..(sprite.height() as i32) {
                     self.draw((x + i, y + j), sprite.get_pixel(fx as u32, fy as u32));
                     fy += fym;
                 }

@@ -1,21 +1,22 @@
 [workspace]
-resolver ="2"
-members=[
-    "pixel_engine",
-    "pixel_engine_backend",
-    "pixel_engine_draw",
-    "examples/fake_mode7",
-    "examples/intersection",
-    "examples/fps_pixel",
-    "examples/decal_dungeons",
-    "examples/simple",
-	"examples/world_transform",
-	"examples/world_transform_examples"
-    ]
+resolver = "2"
+members = [
+  "pixel_engine",
+  "pixel_engine_backend",
+  "pixel_engine_draw",
+  "examples/fake_mode7",
+  "examples/intersection",
+  "examples/fps_pixel",
+  "examples/decal_dungeons",
+  "examples/simple",
+  "examples/world_transform",
+  "examples/world_transform_examples",
+  #"examples/wave-function-collapse"    
+]
 
 [patch.crates-io]
 pixel_engine = { path = "./pixel_engine" }
-pixel_engine_draw ={ path = "./pixel_engine_draw" }
+pixel_engine_draw = { path = "./pixel_engine_draw" }
 pixel_engine_backend = { path = "./pixel_engine_backend" }
 
 [profile.release]

@@ -5,7 +5,7 @@ pub struct Decal(pub(crate) decals::Decal);
 
 impl Decal {
     pub(crate) fn new(ctx: &mut px_backend::Context, spr: &px_draw::graphics::Sprite) -> Self {
-        Decal(ctx.create_decal((&spr.get_raw(), (spr.width, spr.height))))
+        Decal(ctx.create_decal((&spr.get_raw(), (spr.width(), spr.height()))))
     }
     pub fn size(&self) -> (u32, u32) {
         self.0.size

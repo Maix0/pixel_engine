@@ -16,10 +16,10 @@ name="map-edit"
 
 
 [dependencies]
-pixel_engine = "0.4.1"
-ron = "0.6.0"
-serde = "1.0.114"
+pixel_engine = "0.4.2"
+ron = "0.7.1"
+serde = "1.0.137"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.78"
+wasm-bindgen = "0.2.81"
 

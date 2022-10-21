@@ -5,11 +5,36 @@ use winit::window::Window;
 pub mod decals;
 mod texture;
 
+#[macro_use]
+mod macros {
+    #[repr(C)] // guarantee 'bytes' comes after '_align'
+    pub struct AlignedAs<Align, Bytes: ?Sized> {
+        pub _align: [Align; 0],
+        pub bytes: Bytes,
+    }
+
+    macro_rules! include_bytes_align_as {
+        ($align_ty:ty; $($path:tt)*) => {
+            {  // const block expression to encapsulate the static
+                use $crate::macros::AlignedAs;
+
+                // this assignment is made possible by CoerceUnsized
+                static ALIGNED: &AlignedAs::<$align_ty, [u8]> = &AlignedAs {
+                    _align: [],
+                    bytes: *include_bytes!($($path)*),
+                };
+
+                &ALIGNED.bytes
+            }
+        };
+    }
+}
+
 pub trait VertexTrait {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
 #[repr(C)]
-#[derive(Copy, Clone, Debug /*, Pod, Zeroable*/)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(crate) struct Vertex {
     position: [f32; 3],
     // UV + q for warped Decal
@@ -17,9 +42,6 @@ pub(crate) struct Vertex {
 
     tint: [f32; 4],
 }
-
-unsafe impl Pod for Vertex {}
-unsafe impl Zeroable for Vertex {}
 
 impl VertexTrait for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
@@ -117,19 +139,21 @@ impl Context {
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
 
         surface.configure(&device, &config);
 
-        let vs_raw = include_bytes!(concat!(
+        let vs_raw = include_bytes_align_as!(u32; concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/shaders/shader.vert.spv"
         ));
-        let fs_raw = include_bytes!(concat!(
+
+        let fs_raw = include_bytes_align_as!(u32; concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/shaders/shader.frag.spv"
         ));
@@ -137,11 +161,11 @@ impl Context {
         let vs_data: &[u32] = bytemuck::cast_slice(vs_raw);
         let fs_data: &[u32] = bytemuck::cast_slice(fs_raw);
 
-        let vs_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let vs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("vs_module"),
             source: wgpu::ShaderSource::SpirV(std::borrow::Cow::from(vs_data)),
         });
-        let fs_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let fs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("fs_module"),
             source: wgpu::ShaderSource::SpirV(std::borrow::Cow::from(fs_data)),
         });
@@ -209,14 +233,14 @@ impl Context {
             fragment: Some(wgpu::FragmentState {
                 module: &fs_module,
                 entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
+                targets: &[Some(wgpu::ColorTargetState {
                     #[cfg(target_arch = "wasm32")]
                     format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     #[cfg(not(target_arch = "wasm32"))]
                     format: wgpu::TextureFormat::Bgra8UnormSrgb,
                     write_mask: wgpu::ColorWrites::ALL,
                     blend: Some(wgpu::BlendState::REPLACE),
-                }],
+                })],
             }),
             depth_stencil: None,
             multiview: None,
@@ -304,14 +328,14 @@ impl Context {
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                             store: true,
                         },
-                    }],
+                    })],
                     depth_stencil_attachment: None,
                     label: Some("Render Pass"),
                 });
@@ -327,8 +351,6 @@ impl Context {
             }
             self.queue.submit(std::iter::once(encoder.finish()));
             frame.present();
-        } else {
-            println!("Frame timeout !");
         }
     }
 

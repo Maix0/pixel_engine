@@ -6,3 +6,5 @@
 **/console_error_panic_hook
 **/wasm-bindgen
 **/wasm-serve
+**/.direnv
+**/.envrc
