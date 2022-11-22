@@ -16,16 +16,16 @@ async fn init() {
     let mut angle = 0.0;
     for y in (0..spr.height()).step_by(3) {
         for x in (0..spr.width()).step_by(3) {
-            spr.set_pixel(x + 0, y, Color::WHITE);
+            spr.set_pixel(x, y, Color::WHITE);
             spr.set_pixel(x + 1, y, Color::BLUE);
             spr.set_pixel(x + 2, y, Color::MAGENTA);
 
             spr.set_pixel(x + 1, y + 1, Color::WHITE);
             spr.set_pixel(x + 2, y + 1, Color::BLUE);
-            spr.set_pixel(x + 0, y + 1, Color::MAGENTA);
+            spr.set_pixel(x, y + 1, Color::MAGENTA);
 
             spr.set_pixel(x + 2, y + 2, Color::WHITE);
-            spr.set_pixel(x + 0, y + 2, Color::BLUE);
+            spr.set_pixel(x, y + 2, Color::BLUE);
             spr.set_pixel(x + 1, y + 2, Color::MAGENTA)
         }
     }
@@ -86,16 +86,16 @@ async fn init() {
         game.clear([0.5, 0.5, 0.5].into());
         for y in (0..game.size.1).step_by(3) {
             for x in (0..game.size.0).step_by(3) {
-                game.draw((x as i32 + 0, y as i32), Color::BLACK);
+                game.draw((x as i32, y as i32), Color::BLACK);
                 game.draw((x as i32 + 1, y as i32), Color::YELLOW);
                 game.draw((x as i32 + 2, y as i32), Color::VERY_DARK_CYAN);
 
                 game.draw((x as i32 + 1, y as i32 + 1), Color::BLACK);
                 game.draw((x as i32 + 2, y as i32 + 1), Color::YELLOW);
-                game.draw((x as i32 + 0, y as i32 + 1), Color::VERY_DARK_CYAN);
+                game.draw((x as i32, y as i32 + 1), Color::VERY_DARK_CYAN);
 
                 game.draw((x as i32 + 2, y as i32 + 2), Color::BLACK);
-                game.draw((x as i32 + 0, y as i32 + 2), Color::YELLOW);
+                game.draw((x as i32, y as i32 + 2), Color::YELLOW);
                 game.draw((x as i32 + 1, y as i32 + 2), Color::VERY_DARK_CYAN)
             }
         }

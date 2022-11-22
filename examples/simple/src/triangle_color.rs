@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 async fn init() {
     let mut game = px::EngineWrapper::new("Triangle".to_string(), (500, 500, 1)).await;
     fn dist(p1: (i32, i32), p2: (i32, i32)) -> f64 {
-        return (((p2.0 - p1.0).pow(2) + (p2.1 - p1.1).pow(2)) as f64).sqrt();
+        (((p2.0 - p1.0).pow(2) + (p2.1 - p1.1).pow(2)) as f64).sqrt()
     }
     let base = 0.95f32;
     let green = (

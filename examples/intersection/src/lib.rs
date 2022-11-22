@@ -86,10 +86,8 @@ pub async fn init() {
                 ray_length1d.y += ray_unit_step_size.y;
             }
             // if (vMapCheck.x >= 0 && vMapCheck.x < vMapSize.x && vMapCheck.y >= 0 && vMapCheck.y < vMapSize.y)
-            if (0..map_size.x).contains(&map_check.x) && (0..map_size.y).contains(&map_check.y) {
-                if map[(map_check.y * map_size.x + map_check.x) as usize] == 1 {
-                    tile_found = true;
-                }
+            if (0..map_size.x).contains(&map_check.x) && (0..map_size.y).contains(&map_check.y) && map[(map_check.y * map_size.x + map_check.x) as usize] == 1 {
+                tile_found = true;
             }
         }
 

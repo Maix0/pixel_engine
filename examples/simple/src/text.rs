@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 
 async fn init() {
     let mut game = px::EngineWrapper::new("Text".to_owned(), (500, 500, 1)).await;
-    game.draw_text((0, 0), 1, [255, 255, 255].into(), "BONJOUR".into());
+    game.draw_text((0, 0), 1, [255, 255, 255].into(), "BONJOUR");
     game.run(|_game| Ok(true));
 }
 

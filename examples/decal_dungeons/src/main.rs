@@ -105,9 +105,9 @@ fn create_cube(
         y: 0.0,
         z: 0.0,
     }; 8];
-    let mut rot_cube = unit_cube.clone();
-    let mut world_cube = unit_cube.clone();
-    let mut proj_cube = unit_cube.clone();
+    let mut rot_cube = unit_cube;
+    let mut world_cube = unit_cube;
+    let mut proj_cube = unit_cube;
     unit_cube[0] = (0.0, 0.0, 0.0).into();
     unit_cube[1] = (scale, 0.0, 0.0).into();
     unit_cube[2] = (scale, -scale, 0.0).into();
@@ -172,7 +172,7 @@ fn calculate_visible_faces(cube: [Vec3; 8]) -> [bool; 6] {
         let a: Vf2d = (cube[v1].x, cube[v1].y).into();
         let b: Vf2d = (cube[v2].x, cube[v2].y).into();
         let c: Vf2d = (cube[v3].x, cube[v3].y).into();
-        return (b - a).cross(&(c - a)) > 0.0;
+        (b - a).cross(&(c - a)) > 0.0
     };
 
     [

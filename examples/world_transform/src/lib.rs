@@ -12,10 +12,10 @@ impl Transform {
     pub fn new(game: &px::Engine, scale: Vf2d) -> Self {
         Self {
             scale,
-            offset: Vu2d::from(game.size()).cast_f32() / -2.0,
+            offset: game.size().cast_f32() / -2.0,
             start_pan: Vf2d { x: 1.0, y: 1.0 },
             world_top_left: (0.0, 0.0).into(),
-            world_bottom_right: Vu2d::from(game.size()).cast_f32(),
+            world_bottom_right: game.size().cast_f32(),
         }
     }
 
@@ -43,7 +43,7 @@ impl Transform {
         }
 
         self.world_top_left = self.screen_to_world((0, 0).into());
-        self.world_bottom_right = self.screen_to_world(Vu2d::from(game.size()).cast_i32());
+        self.world_bottom_right = self.screen_to_world(game.size().cast_i32());
     }
 
     pub fn handle_zoom<F1, F2>(&mut self, game: &px::Engine, func_plus: F1, func_minus: F2)
@@ -67,14 +67,14 @@ impl Transform {
         self.offset += mouse_before - mouse_after;
 
         self.world_top_left = self.screen_to_world((0, 0).into());
-        self.world_bottom_right = self.screen_to_world(Vu2d::from(game.size()).cast_i32());
+        self.world_bottom_right = self.screen_to_world(game.size().cast_i32());
     }
 
     pub fn get_mouse_location(&self, game: &px::Engine) -> Vf2d {
         let (mouse_x, mouse_y) = game.get_mouse_location();
         let mouse: Vi2d = (mouse_x as i32, mouse_y as i32).into();
-        let mouse_after = self.screen_to_world(mouse);
-        mouse_after
+        
+        self.screen_to_world(mouse)
     }
 
     pub fn is_visible(&self, point: Vf2d) -> bool {

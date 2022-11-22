@@ -38,25 +38,17 @@ async fn init() {
             selected = 2;
             selected_pts = &mut pts3;
         }
-        if game.get_key(Up).any() {
-            if selected_pts.1 > 8 * text_scale * 3 {
-                (*selected_pts).1 -= 1;
-            }
+        if game.get_key(Up).any() && selected_pts.1 > 8 * text_scale * 3 {
+            (*selected_pts).1 -= 1;
         }
-        if game.get_key(Down).any() {
-            if selected_pts.1 < game.size.1 as i32 - 1 {
-                (*selected_pts).1 += 1;
-            }
+        if game.get_key(Down).any() && selected_pts.1 < game.size.1 as i32 - 1 {
+            (*selected_pts).1 += 1;
         }
-        if game.get_key(Left).any() {
-            if selected_pts.0 > 0 {
-                (*selected_pts).0 -= 1;
-            }
+        if game.get_key(Left).any() && selected_pts.0 > 0 {
+            (*selected_pts).0 -= 1;
         }
-        if game.get_key(Right).any() {
-            if selected_pts.0 < game.size.0 as i32 - 1 {
-                (*selected_pts).0 += 1;
-            }
+        if game.get_key(Right).any() && selected_pts.0 < game.size.0 as i32 - 1 {
+            (*selected_pts).0 += 1;
         }
         if game.get_key(Space).pressed {
             fill = !fill;

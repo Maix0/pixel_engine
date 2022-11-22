@@ -29,16 +29,16 @@ pub fn subsprite() {
         engine.run(move |game| {
             for y in (0..game.size.1).step_by(3) {
                 for x in (0..game.size.0).step_by(3) {
-                    game.draw((x as i32 + 0, y as i32), Color::MAGENTA);
+                    game.draw((x as i32, y as i32), Color::MAGENTA);
                     game.draw((x as i32 + 1, y as i32), Color::GREEN);
                     game.draw((x as i32 + 2, y as i32), Color::VERY_DARK_CYAN);
 
                     game.draw((x as i32 + 1, y as i32 + 1), Color::MAGENTA);
                     game.draw((x as i32 + 2, y as i32 + 1), Color::GREEN);
-                    game.draw((x as i32 + 0, y as i32 + 1), Color::VERY_DARK_CYAN);
+                    game.draw((x as i32, y as i32 + 1), Color::VERY_DARK_CYAN);
 
                     game.draw((x as i32 + 2, y as i32 + 2), Color::MAGENTA);
-                    game.draw((x as i32 + 0, y as i32 + 2), Color::GREEN);
+                    game.draw((x as i32, y as i32 + 2), Color::GREEN);
                     game.draw((x as i32 + 1, y as i32 + 2), Color::VERY_DARK_CYAN)
                 }
             }

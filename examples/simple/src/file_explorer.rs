@@ -132,10 +132,7 @@ impl PathView {
     pub fn get_child_name(&self) -> Vec<Option<String>> {
         self.child
             .iter()
-            .map(|x| match x.file_name() {
-                Some(file) => Some(file.to_str().unwrap().to_string()),
-                None => None,
-            })
+            .map(|x| x.file_name().map(|file| file.to_str().unwrap().to_string()))
             .collect()
     }
     pub fn goto_parent(&mut self) {
