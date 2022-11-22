@@ -1,6 +1,7 @@
 //! A pixel base game engine
 
-#![cfg_attr(target_os = "emscripten", allow(unused_mut))]
+#![warn(clippy::pedantic)]
+
 extern crate pixel_engine_backend as px_backend;
 extern crate pixel_engine_draw as px_draw;
 

@@ -36,22 +36,22 @@ impl EngineWrapper {
     }
     /// Create the Engine and the Wrapper
     #[cfg(not(target_arch = "wasm32"))]
-    #[must_use] pub fn new_sync(title: String, size: (u32, u32, u32)) -> Self {
+    #[must_use]
+    pub fn new_sync(title: String, size: (u32, u32, u32)) -> Self {
         Self(Some(Engine::new_sync(title, size)))
     }
     /// The core of your program,
     ///
     /// Takes a function F that will be run every frame, It will do the event handling  and similar
     /// things between frames.
-    pub fn run<F>(mut self, mut main_func: F) -> Self
+    #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
+    pub fn run<F>(mut self, mut main_func: F) -> !
     where
         F: (FnMut(&mut Engine) -> Result<bool, Box<dyn std::error::Error>>) + 'static,
     {
-        let mut engine = self.0.unwrap();
-        self.0 = None;
+        let mut engine = self.0.take().unwrap();
         let mut force_exit = false;
-        let event_loop = engine.event_loop.unwrap();
-        engine.event_loop = None;
+        let event_loop = engine.event_loop.take().unwrap();
         let mut redraw = true;
         let mut redraw_last_frame = false;
         event_loop.run(move |e, _, control_flow| {
@@ -95,10 +95,13 @@ impl EngineWrapper {
                     WindowEvent::CursorMoved { position, .. } => {
                         let (x, y): (f64, f64) = position.into();
                         //events.push(Events::MouseMove(x, y));
-                        engine.mouse.pos = (
-                            (x / f64::from(engine.size.2)).floor() as u32,
-                            (y / f64::from(engine.size.2)).floor() as u32,
-                        );
+                        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+                        {
+                            engine.mouse.pos = (
+                                (x / f64::from(engine.size.2)).trunc().abs() as u32,
+                                (y / f64::from(engine.size.2)).trunc().abs() as u32,
+                            );
+                        };
                     }
                     WindowEvent::MouseWheel { delta, .. } => match delta {
                         winit::event::MouseScrollDelta::LineDelta(x, y) => {
@@ -214,12 +217,6 @@ impl EngineWrapper {
                 redraw_last_frame = true;
             }
         });
-        #[allow(unreachable_code)]
-        {
-            engine.event_loop = Some(event_loop);
-            self.0 = Some(engine);
-            self
-        }
     }
 }
 
@@ -266,10 +263,15 @@ impl Engine {
     async fn new(title: String, size: (u32, u32, u32)) -> Self {
         let event_loop = winit::event_loop::EventLoop::new();
         let window = winit::window::WindowBuilder::new()
-            .with_inner_size(winit::dpi::PhysicalSize::new(
-                (size.0 * size.2) as f32,
-                (size.1 * size.2) as f32,
-            ))
+            .with_inner_size(
+                #[allow(clippy::cast_precision_loss)]
+                {
+                    winit::dpi::PhysicalSize::new(
+                        (size.0 * size.2) as f32,
+                        (size.1 * size.2) as f32,
+                    )
+                },
+            )
             .with_title(&title)
             .with_resizable(false)
             .build(&event_loop)
