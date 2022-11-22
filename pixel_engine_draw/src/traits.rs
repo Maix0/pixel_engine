@@ -1,5 +1,5 @@
 use super::graphics::{Color, PixelMode, Sprite};
-use super::vector2::*;
+use super::vector2::{Vi2d, Vu2d};
 
 use crate::graphics::DrawSpriteTrait;
 
@@ -40,7 +40,7 @@ pub trait DottedShapeTrait: SmartDrawingTrait {
     fn draw_line_dotted<P: Into<Vi2d>>(&mut self, p1: P, p2: P, col: Color, mut pattern: u32) {
         let mut rol = || {
             pattern = (pattern << 1) | (pattern >> 31);
-            return pattern & 1 > 0;
+            pattern & 1 > 0
         };
         let p1: Vi2d = p1.into();
         let p2: Vi2d = p2.into();

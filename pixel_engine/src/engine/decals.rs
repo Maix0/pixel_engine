@@ -109,7 +109,7 @@ pub trait DecalDraw {
     /// warping
     /// The points are in order:
     ///
-    /// TopLeft, BottomLeft, BottomRight, TopRight
+    /// `TopLeft`, `BottomLeft`, `BottomRight`, `TopRight`
     #[inline]
     fn draw_warped_decal<P: Into<Vf2d> + Copy>(&mut self, pos: [P; 4], decal: &Decal) {
         self.draw_warped_decal_tinted(pos, decal, Color::WHITE)
@@ -118,7 +118,7 @@ pub trait DecalDraw {
     /// warping
     /// The points are in order:
     ///
-    /// TopLeft, BottomLeft, BottomRight, TopRight
+    /// `TopLeft`, `BottomLeft`, `BottomRight`, `TopRight`
     #[inline]
     fn draw_warped_partial_decal<P: Into<Vf2d> + Copy>(
         &mut self,
@@ -627,7 +627,7 @@ impl DecalDraw for crate::Engine {
                 * (pos[POINT_ONE].y - pos[POINT_TWO].y)
                 - (pos[POINT_THREE].y - pos[POINT_ONE].y) * (pos[POINT_ONE].x - pos[POINT_TWO].x))
                 * rd;
-            if !(rn < 0.0 || rn > 1.0 || sn < 0.0 || sn > 1.0) {
+            if !(!(0.0..=1.0).contains(&rn) || !(0.0..=1.0).contains(&sn)) {
                 center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
             };
             let mut d = [0.0; 4];
@@ -699,7 +699,7 @@ impl DecalDraw for crate::Engine {
                 * (pos[POINT_ONE].y - pos[POINT_TWO].y)
                 - (pos[POINT_THREE].y - pos[POINT_ONE].y) * (pos[POINT_ONE].x - pos[POINT_TWO].x))
                 * rd;
-            if !(rn < 0.0 || rn > 1.0 || sn < 0.0 || sn > 1.0) {
+            if !(!(0.0..=1.0).contains(&rn) || !(0.0..=1.0).contains(&sn)) {
                 center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
             };
             let mut d = [0.0; 4];

@@ -12,7 +12,7 @@ pub struct Input {
 
 impl Input {
     /// Create a new [`Input`] with the given values
-    pub const fn new(pressed: bool, held: bool, released: bool) -> Self {
+    #[must_use] pub const fn new(pressed: bool, held: bool, released: bool) -> Self {
         Input {
             pressed,
             held,
@@ -20,7 +20,7 @@ impl Input {
         }
     }
     /// Create an [`Input`] where all field are set to false
-    pub const fn default() -> Self {
+    #[must_use] pub const fn default() -> Self {
         Input {
             pressed: false,
             held: false,
@@ -28,7 +28,7 @@ impl Input {
         }
     }
     /// Return true if any of the field is true, false otherwise
-    pub fn any(self) -> bool {
+    #[must_use] pub fn any(self) -> bool {
         self.pressed || self.held || self.released
     }
 }
@@ -89,7 +89,7 @@ pub struct Key {
 }
 impl Key {
     /// Return the key's text if it exist
-    pub fn get_str_option(self) -> Option<String> {
+    #[must_use] pub fn get_str_option(self) -> Option<String> {
         if self.get_str() != "" {
             Some(self.get_str())
         } else {
@@ -97,8 +97,8 @@ impl Key {
         }
     }
     /// Return the key's text if it exist, return blank string if not
-    pub fn get_str(self) -> String {
-        use Keycodes::*;
+    #[must_use] pub fn get_str(self) -> String {
+        use Keycodes::{A, B, C, D, E, F, G, H, I, J, K, Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, L, M, N, Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9, O, P, Q, R, S, Space, T, U, V, W, X, Y, Z};
         (match self.key {
             A => "a",
             B => "b",

@@ -123,7 +123,7 @@ macro_rules! cast {
     ($from:ty, $to:ty) => {
         impl Vec2d<$from> {
             paste! {
-                pub fn [<cast _$to>](self) -> Vec2d<$to> {
+                #[must_use] pub fn [<cast _$to>](self) -> Vec2d<$to> {
                     Vec2d {
                         x: self.x as $to,
                         y: self.y as $to,

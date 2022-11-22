@@ -125,7 +125,7 @@ impl Sprite {
         Self::boxed_slice_to_cell(img.into_raw().into_boxed_slice())
     }
 
-    /// Transmute a owned slice to an owned UnsafeCell wrapped slice
+    /// Transmute a owned slice to an owned `UnsafeCell` wrapped slice
     pub(crate) fn boxed_slice_to_cell(slice: Box<[u8]>) -> Box<UnsafeCell<[u8]>> {
         // This is because we can't have the slice on the stack to create a Boxed slice and there
         // is no .map for a Box.
@@ -218,7 +218,7 @@ impl Sprite {
     }
     
 
-    /// This is used when using [create_sub_sprite_unchecked()](Sprite::create_sub_sprite_unchecked)
+    /// This is used when using [`create_sub_sprite_unchecked`()](Sprite::create_sub_sprite_unchecked)
     ///
     /// # Safety
     ///
@@ -261,7 +261,7 @@ impl Sprite {
         })
     }
     /// Create [Sprite] with a size of 1x1
-    pub fn new_blank() -> Sprite {
+    #[must_use] pub fn new_blank() -> Sprite {
         Sprite {
             size: Vu2d { x: 1, y: 1 },
             raw: Self::boxed_slice_to_cell(vec![0x00; 4].into_boxed_slice()),
@@ -270,7 +270,7 @@ impl Sprite {
         }
     }
     /// Create [Sprite] with given size and [Color]
-    pub fn new_with_color(w: u32, h: u32, col: Color) -> Self {
+    #[must_use] pub fn new_with_color(w: u32, h: u32, col: Color) -> Self {
         Sprite {
             size: Vu2d { x: w, y: h },
             raw: Self::boxed_slice_to_cell(
@@ -285,7 +285,7 @@ impl Sprite {
         }
     }
     /// Create a blank [Sprite] with given size
-    pub fn new(w: u32, h: u32) -> Sprite {
+    #[must_use] pub fn new(w: u32, h: u32) -> Sprite {
         Sprite {
             size: Vu2d { x: w, y: h },
             raw: Self::boxed_slice_to_cell(
@@ -328,8 +328,8 @@ impl Sprite {
     pub fn get_sample(&self, x: f64, y: f64) -> Color {
         let x = x.fract();
         let y = y.fract();
-        let sample_x = ((x * (self.width()) as f64) as u32).min(self.width() - 1);
-        let sample_y = ((y * (self.height()) as f64) as u32).min(self.height() - 1);
+        let sample_x = ((x * f64::from(self.width())) as u32).min(self.width() - 1);
+        let sample_y = ((y * f64::from(self.height())) as u32).min(self.height() - 1);
         self.get_pixel(sample_x, sample_y)
     }
 
@@ -343,7 +343,7 @@ impl<'spr> SpriteMutRef<'spr> {
     fn get_nth_ptr(&self, row: u32) -> *mut u8 {
         unsafe {
             let base_offset = (self.pos.y * self.spr_width + self.pos.x) as usize * 4;
-            let base_ptr = (self.spr.raw.get() as *mut u8).add(base_offset);
+            let base_ptr = self.spr.raw.get().cast::<u8>().add(base_offset);
             base_ptr.add((self.spr_width * row * 4) as usize)
         }
     }
@@ -406,11 +406,11 @@ pub struct Color {
 
 impl Color {
     /// Return a [Color] with alpha set at 255
-    pub const fn new(r: u8, g: u8, b: u8) -> Color {
+    #[must_use] pub const fn new(r: u8, g: u8, b: u8) -> Color {
         Color { r, g, b, a: 255 }
     }
     /// Return a [Color] where alpha is also a argument
-    pub const fn new_with_alpha(r: u8, g: u8, b: u8, a: u8) -> Color {
+    #[must_use] pub const fn new_with_alpha(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
     /// White [Color]
@@ -526,11 +526,11 @@ impl<S: DrawSpriteTrait> crate::traits::SmartDrawingTrait for DrawingSprite<S> {
             PixelMode::Alpha => {
                 let current_color: Color =
                     unsafe { self.sprite.get_pixel_unchecked(pos.cast_u32()) };
-                let alpha: f32 = (col.a as f32 / 255.0f32) * blend_factor;
+                let alpha: f32 = (f32::from(col.a) / 255.0f32) * blend_factor;
                 let inverse_alpha: f32 = 1.0 - alpha;
-                let red: f32 = alpha * col.r as f32 + inverse_alpha * current_color.r as f32;
-                let green: f32 = alpha * col.g as f32 + inverse_alpha * current_color.g as f32;
-                let blue: f32 = alpha * col.b as f32 + inverse_alpha * current_color.b as f32;
+                let red: f32 = alpha * f32::from(col.r) + inverse_alpha * f32::from(current_color.r);
+                let green: f32 = alpha * f32::from(col.g) + inverse_alpha * f32::from(current_color.g);
+                let blue: f32 = alpha * f32::from(col.b) + inverse_alpha * f32::from(current_color.b);
                 unsafe {
                     self.sprite
                         .set_pixel_unchecked(pos.cast_u32(), [red, green, blue].into());
@@ -730,10 +730,10 @@ fn create_text() -> &'static Sprite {
             let mut py = 0;
             let chars = TEXT_FONT;
             for b in (0..1024).step_by(4) {
-                let sym1 = chars[b] as u32 - 48;
-                let sym2 = chars[b + 1] as u32 - 48;
-                let sym3 = chars[b + 2] as u32 - 48;
-                let sym4 = chars[b + 3] as u32 - 48;
+                let sym1 = u32::from(chars[b]) - 48;
+                let sym2 = u32::from(chars[b + 1]) - 48;
+                let sym3 = u32::from(chars[b + 2]) - 48;
+                let sym4 = u32::from(chars[b + 3]) - 48;
                 let r: u32 = sym1 << 18 | sym2 << 12 | sym3 << 6 | sym4;
                 for i in 0..24 {
                     let k = if (r & (1 << i)) != 0 { 255 } else { 0 };
@@ -826,19 +826,19 @@ impl From<Color> for [u8; 3] {
 impl From<Color> for [f64; 4] {
     fn from(col: Color) -> Self {
         [
-            col.r as f64 / 255f64,
-            col.g as f64 / 255f64,
-            col.b as f64 / 255f64,
-            col.a as f64 / 255f64,
+            f64::from(col.r) / 255f64,
+            f64::from(col.g) / 255f64,
+            f64::from(col.b) / 255f64,
+            f64::from(col.a) / 255f64,
         ]
     }
 }
 impl From<Color> for [f64; 3] {
     fn from(col: Color) -> Self {
         [
-            col.r as f64 / 255f64,
-            col.g as f64 / 255f64,
-            col.b as f64 / 255f64,
+            f64::from(col.r) / 255f64,
+            f64::from(col.g) / 255f64,
+            f64::from(col.b) / 255f64,
         ]
     }
 }
@@ -846,19 +846,19 @@ impl From<Color> for [f64; 3] {
 impl From<Color> for [f32; 4] {
     fn from(col: Color) -> Self {
         [
-            col.r as f32 / 255f32,
-            col.g as f32 / 255f32,
-            col.b as f32 / 255f32,
-            col.a as f32 / 255f32,
+            f32::from(col.r) / 255f32,
+            f32::from(col.g) / 255f32,
+            f32::from(col.b) / 255f32,
+            f32::from(col.a) / 255f32,
         ]
     }
 }
 impl From<Color> for [f32; 3] {
     fn from(col: Color) -> Self {
         [
-            col.r as f32 / 255f32,
-            col.g as f32 / 255f32,
-            col.b as f32 / 255f32,
+            f32::from(col.r) / 255f32,
+            f32::from(col.g) / 255f32,
+            f32::from(col.b) / 255f32,
         ]
     }
 }

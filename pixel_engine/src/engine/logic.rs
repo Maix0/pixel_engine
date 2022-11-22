@@ -36,7 +36,7 @@ impl EngineWrapper {
     }
     /// Create the Engine and the Wrapper
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn new_sync(title: String, size: (u32, u32, u32)) -> Self {
+    #[must_use] pub fn new_sync(title: String, size: (u32, u32, u32)) -> Self {
         Self(Some(Engine::new_sync(title, size)))
     }
     /// The core of your program,
@@ -96,8 +96,8 @@ impl EngineWrapper {
                         let (x, y): (f64, f64) = position.into();
                         //events.push(Events::MouseMove(x, y));
                         engine.mouse.pos = (
-                            (x / engine.size.2 as f64).floor() as u32,
-                            (y / engine.size.2 as f64).floor() as u32,
+                            (x / f64::from(engine.size.2)).floor() as u32,
+                            (y / f64::from(engine.size.2)).floor() as u32,
                         );
                     }
                     WindowEvent::MouseWheel { delta, .. } => match delta {

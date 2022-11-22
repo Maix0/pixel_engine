@@ -28,7 +28,7 @@ pub struct DecalContextManager {
 }
 
 impl DecalContextManager {
-    pub fn new(device: &wgpu::Device) -> (Self, wgpu::CommandBuffer) {
+    #[must_use] pub fn new(device: &wgpu::Device) -> (Self, wgpu::CommandBuffer) {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("decal"),
         });
@@ -122,7 +122,7 @@ impl Decal {
         ctx.dcm.decal_textures.remove(&self.id);
     }
 
-    pub fn id(&self) -> DecalTextureID {
+    #[must_use] pub fn id(&self) -> DecalTextureID {
         self.id
     }
 }

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 extern crate pixel_engine_draw as px_draw;
-use px_draw::graphics::*;
+use px_draw::graphics::{Color, DrawSpriteTrait, Sprite};
 
 fn main() {
     println!("This is a library to print sprite to the console (crudely)");
