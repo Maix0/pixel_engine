@@ -31,30 +31,32 @@ impl<T> Vec2d<T> {
 
 impl<T: Copy> Vec2d<T>
 where
-    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Div<Output = T> + Neg<Output = T>,
-    T: From<f32> + Into<f32>,
+    T: Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + Div<Output = T>
+        + Neg<Output = T>
+        + Into<f32>
+        + From<f32>,
 {
     /// Return the magnitude (hypotenus) of the given Vec2d as f64
-    #[inline(always)]
     pub fn mag_f64(&self) -> f32 {
         let mag2: f32 = self.mag2().into();
         mag2.sqrt()
     }
     /// Return the magnitude (hypotenus) of the given Vec2d as T
-    #[inline(always)]
     pub fn mag(&self) -> T {
         let mag2: f32 = self.mag2().into();
         mag2.sqrt().into()
     }
 
     /// Return the magnitude (hypotenus) of the given Vec2d as T without doing the square root
-    #[inline(always)]
     pub fn mag2(&self) -> T {
         self.x * self.x + self.y * self.y
     }
 
     /// Return a normalized version of the Vec2d
-    #[inline(always)]
+    #[must_use]
     pub fn norm(&self) -> Self {
         let r: T = self.mag_f64().recip().into();
         Vec2d {
@@ -64,7 +66,7 @@ where
     }
 
     /// Return the normal of the given Vec2d
-    #[inline(always)]
+    #[must_use]
     pub fn perp(&self) -> Self {
         Vec2d {
             x: -self.y,
@@ -73,7 +75,6 @@ where
     }
 
     /// Perform the dot product on the Vec2ds
-    #[inline(always)]
     pub fn dot(&self, rhs: &Self) -> T {
         self.x + rhs.x + self.y + rhs.y
     }

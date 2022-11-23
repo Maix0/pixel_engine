@@ -1,4 +1,10 @@
-use std::{cell::UnsafeCell, mem::transmute, sync::Arc};
+#![allow(
+    clippy::cast_sign_loss,
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation
+)]
+
+use std::{cell::UnsafeCell, convert::TryInto, mem::transmute, sync::Arc};
 
 use once_cell::sync::OnceCell;
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
@@ -133,14 +139,20 @@ impl Sprite {
         unsafe { transmute(slice) }
     }
     /// Load an rgba slice as an Sprite, will clone the slice
+    /// the dimentions are in pixel
+    ///
+    /// # Errors
+    ///
+    /// if the slice isn't an rgba slice it will return an `Err`
+    /// this means that `slice.len() % 4 = 0` and that `slice.len() = width * height * 4`
     pub fn load_rgba(rgba: &[u8], width: usize, height: usize) -> Result<Self, String> {
         if rgba.len() % 4 != 0 || rgba.len() != width * height * 4 {
             Err("Wrong Image len".to_string())
         } else {
             Ok(Self {
                 size: Vu2d {
-                    x: width as u32,
-                    y: height as u32,
+                    x: width.try_into().expect("Image too large"),
+                    y: height.try_into().expect("Image too large"),
                 },
                 raw: Self::boxed_slice_to_cell(rgba.to_vec().into_boxed_slice()),
                 areas: Mutex::new(slab::Slab::new()),
@@ -149,6 +161,15 @@ impl Sprite {
         }
     }
 
+    /// Creates a subsprite on a given parent sprite
+    /// The real position will be clamped to the sprite dimentions, so if the `pos` has some
+    /// negative parts, it will be clipped, only showing the positive part.
+    /// Same with if the `size + pos` goes outside of the sprite.
+    ///
+    /// # Errors
+    ///
+    /// This will return an error if an subsprite already exists and that it overlaps
+    #[allow(clippy::cast_sign_loss)]
     pub fn create_sub_sprite(
         &self,
         pos: Vi2d,
@@ -216,7 +237,6 @@ impl Sprite {
             write_lock: self.read_lock.clone(),
         }
     }
-    
 
     /// This is used when using [`create_sub_sprite_unchecked`()](Sprite::create_sub_sprite_unchecked)
     ///
@@ -228,8 +248,11 @@ impl Sprite {
         &self.areas
     }
 
-
     /// Load an image from bytes, will clone the slice
+    ///
+    /// # Errors
+    ///
+    /// If the slice isn't an valid image format handled by the image crate, returns an error
     pub fn load_image_bytes(bytes: &[u8]) -> Result<Self, String> {
         let img = image::load_from_memory(bytes)
             .map_err(|err| err.to_string())?
@@ -247,6 +270,9 @@ impl Sprite {
     }
 
     ///Load a image file and return a Sprite object representing that image
+    /// # Errors
+    ///
+    /// If the file isn't an valid image format handled by the image crate or if the file IO failed, returns an error
     pub fn load_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Sprite, String> {
         let img = image::open(path).map_err(|err| err.to_string())?.to_rgba8();
 
@@ -261,7 +287,8 @@ impl Sprite {
         })
     }
     /// Create [Sprite] with a size of 1x1
-    #[must_use] pub fn new_blank() -> Sprite {
+    #[must_use]
+    pub fn new_blank() -> Sprite {
         Sprite {
             size: Vu2d { x: 1, y: 1 },
             raw: Self::boxed_slice_to_cell(vec![0x00; 4].into_boxed_slice()),
@@ -270,7 +297,8 @@ impl Sprite {
         }
     }
     /// Create [Sprite] with given size and [Color]
-    #[must_use] pub fn new_with_color(w: u32, h: u32, col: Color) -> Self {
+    #[must_use]
+    pub fn new_with_color(w: u32, h: u32, col: Color) -> Self {
         Sprite {
             size: Vu2d { x: w, y: h },
             raw: Self::boxed_slice_to_cell(
@@ -285,7 +313,8 @@ impl Sprite {
         }
     }
     /// Create a blank [Sprite] with given size
-    #[must_use] pub fn new(w: u32, h: u32) -> Sprite {
+    #[must_use]
+    pub fn new(w: u32, h: u32) -> Sprite {
         Sprite {
             size: Vu2d { x: w, y: h },
             raw: Self::boxed_slice_to_cell(
@@ -406,11 +435,13 @@ pub struct Color {
 
 impl Color {
     /// Return a [Color] with alpha set at 255
-    #[must_use] pub const fn new(r: u8, g: u8, b: u8) -> Color {
+    #[must_use]
+    pub const fn new(r: u8, g: u8, b: u8) -> Color {
         Color { r, g, b, a: 255 }
     }
     /// Return a [Color] where alpha is also a argument
-    #[must_use] pub const fn new_with_alpha(r: u8, g: u8, b: u8, a: u8) -> Color {
+    #[must_use]
+    pub const fn new_with_alpha(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
     /// White [Color]
@@ -484,7 +515,7 @@ impl<S: DrawSpriteTrait> DrawSpriteTrait for DrawingSprite<S> {
     }
 
     fn set_pixel(&mut self, pos: Vi2d, col: Color) {
-        self.sprite.set_pixel(pos, col)
+        self.sprite.set_pixel(pos, col);
     }
 
     unsafe fn get_pixel_unchecked(&self, pos: Vu2d) -> Color {
@@ -492,7 +523,7 @@ impl<S: DrawSpriteTrait> DrawSpriteTrait for DrawingSprite<S> {
     }
 
     unsafe fn set_pixel_unchecked(&mut self, pos: Vu2d, col: Color) {
-        self.sprite.set_pixel_unchecked(pos, col)
+        self.sprite.set_pixel_unchecked(pos, col);
     }
 }
 
@@ -509,7 +540,11 @@ impl<S: DrawSpriteTrait> crate::traits::SmartDrawingTrait for DrawingSprite<S> {
         let pixel_mode = self.get_pixel_mode();
         let blend_factor = self.get_blend_factor();
         let pos @ Vi2d { x, y } = pos.into();
-        if x >= self.sprite.size().x as i32 || y >= self.sprite.size().y as i32 || x < 0 || y < 0 {
+        if x >= self.sprite.size().x.try_into().unwrap()
+            || y >= self.sprite.size().y.try_into().unwrap()
+            || x < 0
+            || y < 0
+        {
             return;
         }
         match pixel_mode {
@@ -528,9 +563,12 @@ impl<S: DrawSpriteTrait> crate::traits::SmartDrawingTrait for DrawingSprite<S> {
                     unsafe { self.sprite.get_pixel_unchecked(pos.cast_u32()) };
                 let alpha: f32 = (f32::from(col.a) / 255.0f32) * blend_factor;
                 let inverse_alpha: f32 = 1.0 - alpha;
-                let red: f32 = alpha * f32::from(col.r) + inverse_alpha * f32::from(current_color.r);
-                let green: f32 = alpha * f32::from(col.g) + inverse_alpha * f32::from(current_color.g);
-                let blue: f32 = alpha * f32::from(col.b) + inverse_alpha * f32::from(current_color.b);
+                let red: f32 =
+                    alpha * f32::from(col.r) + inverse_alpha * f32::from(current_color.r);
+                let green: f32 =
+                    alpha * f32::from(col.g) + inverse_alpha * f32::from(current_color.g);
+                let blue: f32 =
+                    alpha * f32::from(col.b) + inverse_alpha * f32::from(current_color.b);
                 unsafe {
                     self.sprite
                         .set_pixel_unchecked(pos.cast_u32(), [red, green, blue].into());
@@ -573,7 +611,15 @@ pub trait DrawSpriteTrait {
     fn get_pixel(&self, pos: Vi2d) -> Option<Color>;
     fn set_pixel(&mut self, pos: Vi2d, col: Color);
     fn size(&self) -> Vu2d;
+    /// Get the pixel at the given location, but bypassing any bounds check
+    ///
+    /// # Safety
+    ///     You must ensure that the pos in bounds
     unsafe fn get_pixel_unchecked(&self, pos: Vu2d) -> Color;
+    /// Set the pixel at the given location, but bypassing any bounds check
+    ///
+    /// # Safety
+    ///     You must ensure that the pos in bounds
     unsafe fn set_pixel_unchecked(&mut self, pos: Vu2d, col: Color);
 }
 
@@ -583,7 +629,7 @@ impl DrawSpriteTrait for Sprite {
         {
             return None;
         }
-        let (raw, _lock) = self.get_read_lock();
+        let (raw, lock) = self.get_read_lock();
         let mut col = Color::BLANK;
         let pos = pos.cast_u32();
 
@@ -591,7 +637,7 @@ impl DrawSpriteTrait for Sprite {
         col.g = raw[(pos.y * self.width() + pos.x) as usize * 4 + 1];
         col.b = raw[(pos.y * self.width() + pos.x) as usize * 4 + 2];
         col.a = raw[(pos.y * self.width() + pos.x) as usize * 4 + 3];
-        drop(_lock);
+        drop(lock);
         Some(col)
     }
 
@@ -599,7 +645,7 @@ impl DrawSpriteTrait for Sprite {
         if pos.x < 0 || pos.y < 0 {
             return;
         };
-        self.set_pixel(pos.x as u32, pos.y as u32, col)
+        self.set_pixel(pos.x as u32, pos.y as u32, col);
     }
     fn size(&self) -> Vu2d {
         *self.size()
@@ -653,7 +699,7 @@ impl<'spr> DrawSpriteTrait for SpriteMutRef<'spr> {
         if pos.x < 0 || pos.y < 0 {
             return;
         };
-        self.set_pixel(pos.cast_u32(), col)
+        self.set_pixel(pos.cast_u32(), col);
     }
     fn size(&self) -> Vu2d {
         self.size
@@ -736,7 +782,7 @@ fn create_text() -> &'static Sprite {
                 let sym4 = u32::from(chars[b + 3]) - 48;
                 let r: u32 = sym1 << 18 | sym2 << 12 | sym3 << 6 | sym4;
                 for i in 0..24 {
-                    let k = if (r & (1 << i)) != 0 { 255 } else { 0 };
+                    let k = if (r & (1 << i)) == 0 { 0 } else { 255 };
                     sheet.set_pixel(px, py, [k, k, k].into());
                     py += 1;
                     if py == 48 {

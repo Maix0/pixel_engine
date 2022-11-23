@@ -1,3 +1,4 @@
+#![warn(clippy::pedantic)]
 #[macro_use]
 extern crate paste;
 extern crate parking_lot;

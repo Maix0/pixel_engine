@@ -164,8 +164,13 @@ pub trait ShapesTrait: SmartDrawingTrait {
     /// This will handle `\n` treating it as a new line, but wont do any newline stuff if it is
     /// drawing out of the screen
     fn draw_text<P: Into<Vi2d>>(&mut self, pos: P, scale: u32, col: Color, text: &str) {
+        #![allow(
+            clippy::cast_precision_loss,
+            clippy::cast_possible_wrap,
+            clippy::cast_sign_loss
+        )]
         let Vi2d { x, y } = pos.into();
-        let scale = scale as i32;
+        let scale: i32 = scale.try_into().unwrap();
         let mut sx = 0;
         let mut sy = 0;
         for chr in text.chars() {
@@ -192,7 +197,7 @@ pub trait ShapesTrait: SmartDrawingTrait {
                                         self.draw(
                                             (x + sx + (i * scale) + is, y + sy + (j * scale) + js),
                                             col,
-                                        )
+                                        );
                                     }
                                 }
                             }
@@ -207,7 +212,7 @@ pub trait ShapesTrait: SmartDrawingTrait {
                                 .r
                                 > 0
                             {
-                                self.draw((x + sx + i, y + sy + j), col)
+                                self.draw((x + sx + i, y + sy + j), col);
                             }
                         }
                     }
@@ -361,11 +366,12 @@ pub trait ShapesTrait: SmartDrawingTrait {
     /// Draw a circle with center `(x, y)` and raduis `r`
     fn draw_circle<P: Into<Vi2d>>(&mut self, pos: P, r: u32, col: Color) {
         let Vi2d { x, y } = pos.into();
+        let r_i32: i32 = r.try_into().unwrap();
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
-        let mut y0: i32 = r as i32;
-        let mut d: i32 = 3 - 2 * r as i32;
+        let mut y0: i32 = r_i32;
+        let mut d: i32 = 3i32 - 2i32 * r_i32;
         if r == 0 {
             return;
         }
@@ -393,11 +399,12 @@ pub trait ShapesTrait: SmartDrawingTrait {
     /// Fill a circle with center `(x, y)` and raduis `r`
     fn fill_circle<P: Into<Vi2d>>(&mut self, pos: P, r: u32, col: Color) {
         let Vi2d { x, y } = pos.into();
+        let r_i32: i32 = r.try_into().unwrap();
         let x = x as i32;
         let y = y as i32;
         let mut x0: i32 = 0;
-        let mut y0: i32 = r as i32;
-        let mut d: i32 = 3 - 2 * r as i32;
+        let mut y0: i32 = r_i32;
+        let mut d: i32 = 3 - 2 * r_i32;
         if r == 0 {
             return;
         }
@@ -428,6 +435,9 @@ pub trait ShapesTrait: SmartDrawingTrait {
 
     /// Fill the given triangle
     fn fill_triangle<P: Into<Vi2d>>(&mut self, pts1: P, pts2: P, pts3: P, col: Color) {
+        #![allow(clippy::cast_precision_loss)]
+        use std::cmp::{max, min};
+
         let pts1: Vi2d = pts1.into();
         let pts2: Vi2d = pts2.into();
         let pts3: Vi2d = pts3.into();
@@ -458,7 +468,6 @@ pub trait ShapesTrait: SmartDrawingTrait {
             ),
         );
         //dbg!(&lines);
-        use std::cmp::{max, min};
         let iterx = {
             let x1 = min(min(pts1.0, pts2.0), pts3.0);
             let x2 = max(max(pts1.0, pts2.0), pts3.0);
@@ -511,7 +520,7 @@ pub trait ShapesTrait: SmartDrawingTrait {
                     && ((lines.1).0 * x + (lines.1).1 * y - (lines.1).2) * l_mul.1 >= 0
                     && ((lines.2).0 * x + (lines.2).1 * y - (lines.2).2) * l_mul.2 >= 0
                 {
-                    self.draw((x, y), col)
+                    self.draw((x, y), col);
                 }
             }
         }
@@ -530,6 +539,11 @@ pub trait SpriteTrait: SmartDrawingTrait {
         sprite: &Sprite,
         flip: (bool, bool),
     ) {
+        #![allow(
+            clippy::cast_precision_loss,
+            clippy::cast_possible_wrap,
+            clippy::cast_sign_loss
+        )]
         let Vi2d { x, y } = pos.into();
         let (mut fxs, mut fxm) = (0i32, 1i32);
         let (mut fys, mut fym) = (0i32, 1i32);
@@ -586,6 +600,11 @@ pub trait SpriteTrait: SmartDrawingTrait {
         scale: u32,
         flip: (bool, bool),
     ) {
+        #![allow(
+            clippy::cast_precision_loss,
+            clippy::cast_possible_wrap,
+            clippy::cast_sign_loss
+        )]
         let Vi2d { x, y } = coords.into();
         let Vi2d { x: ox, y: oy } = o.into();
         let Vi2d { x: w, y: h } = size.into();
