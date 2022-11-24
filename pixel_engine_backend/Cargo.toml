@@ -1,13 +1,15 @@
 [package]
 name = "pixel_engine_backend"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
 description = "An thin layer around wgpu that allow the modification of a texutre displayed on the screen"
 repository = "https://github.com/maix0/pixel_engine"
 exclude = ["Cargo.lock"]
+readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 
 [features]
 webgl = ["wgpu/webgl"]
