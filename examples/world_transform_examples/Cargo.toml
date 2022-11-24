@@ -2,7 +2,7 @@
 name = "world_transform_examples"
 version = "0.1.0"
 edition = "2021"
-
+publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [dependencies]
-pixel_engine= "0.4.2"
+pixel_engine= "0.5.0"
 world_transform = {path="../world_transform"}
 
 

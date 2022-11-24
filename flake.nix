@@ -3,12 +3,13 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
-
+  inputs.cargo-workspace.url = "github:Maix0/cargo-ws-flake";
   outputs = {
     self,
     nixpkgs,
     flake-utils,
     rust-overlay,
+    cargo-workspace,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {
@@ -24,6 +25,7 @@
           ndkVersions = ["22.1.7171670"];
           buildToolsVersions = ["30.0.3"];
         };
+        cargo-ws = cargo-workspace.defaultPackage.${system}; #.packages.${system}.default;
       in
         mkShell {
           nativeBuildInputs = [
@@ -43,6 +45,7 @@
             wasm-bindgen-cli
             # android
             androidComposition.androidsdk
+            cargo-ws
           ];
 
           LIB_PATH = lib.makeLibraryPath [wayland wayland-protocols libxkbcommon vulkan-loader libGL androidComposition.androidsdk];

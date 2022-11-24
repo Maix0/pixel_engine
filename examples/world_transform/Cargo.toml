@@ -2,10 +2,12 @@
 name = "world_transform"
 version = "0.1.0"
 authors = ["Maix0 <maix522@gmail.com>"]
-edition = "2018"
+
+edition = "2021"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
 [dependencies]
-pixel_engine= "0.4.2"
+pixel_engine= "0.5.0"
