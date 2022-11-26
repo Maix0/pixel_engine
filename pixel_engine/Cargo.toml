@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -15,14 +15,14 @@ readme = "../README.md"
 
 
 [dependencies]
-pixel_engine_backend = "0.5.0"
-pixel_engine_draw    = "0.5.0"
+pixel_engine_backend = "0.5.2"
+pixel_engine_draw    = "0.5.2"
 futures = "0.3.25"
 instant = "0.1.12"
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
 web-sys = "0.3.60"
-wasm-bindgen-futures = "0.4.31"
+wasm-bindgen-futures = "0.4.33"
 console_error_panic_hook = "0.1.7"
 wgpu = { version = "0.14.0", features = ["webgl"] }
 

@@ -3,12 +3,24 @@
 use px_backend::decals;
 use px_draw::graphics::Color;
 use px_draw::vector2::Vf2d;
-pub struct Decal(pub(crate) decals::Decal);
+/// A sprite that lives on the GPU.
+/// To not get a (GPU) memory leak, you need to destroy the decal manually through the method
+/// `Engine::destroy_decal`
+pub struct Decal(pub(crate) std::mem::ManuallyDrop<decals::Decal>);
+
+impl Drop for Decal {
+    fn drop(&mut self) {
+        eprintln!("You need to destroy the decal using the apropriate method and not though the drop impl");
+    }
+}
 
 impl Decal {
     pub(crate) fn new(ctx: &mut px_backend::Context, spr: &px_draw::graphics::Sprite) -> Self {
-        Decal(ctx.create_decal((&spr.get_raw(), (spr.width(), spr.height()))))
+        Decal(std::mem::ManuallyDrop::new(ctx.create_decal((&spr.get_raw(), (spr.width(), spr.height())))))
     }
+
+    /// Get the size of the decal in pixel
+    #[must_use]
     pub fn size(&self) -> (u32, u32) {
         self.0.size
     }

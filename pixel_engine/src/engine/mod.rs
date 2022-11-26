@@ -4,7 +4,8 @@ pub use px_draw::vector2;
 /// A collection of traits used to draw things
 pub mod traits;
 
-mod decals;
+/// A Gpu-located spite
+pub mod decals;
 /// User Input module
 pub mod inputs;
 mod logic;

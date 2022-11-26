@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine_backend"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -16,8 +16,8 @@ webgl = ["wgpu/webgl"]
 
 [dependencies]
 wgpu = { version = "0.14.0", features = ["spirv"] }
-bytemuck = { version = "1.9.1", features = ["derive"] }
-winit = { version = "0.27.4", features = [
+bytemuck = { version = "1.12.3", features = ["derive"] }
+winit = { version = "0.27.5", features = [
   "wayland",
 ] } #, default-features=false}
 

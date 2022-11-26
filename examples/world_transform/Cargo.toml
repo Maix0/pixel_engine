@@ -10,4 +10,4 @@ publish = false
 
 
 [dependencies]
-pixel_engine= "0.5.0"
+pixel_engine= "0.5.2"

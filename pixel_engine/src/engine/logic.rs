@@ -1,6 +1,7 @@
-use super::decals;
+use super::decals::Decal;
 use super::inputs::{self, Input, KeySet, Mouse, MouseBtn, MouseWheel};
 use super::Sprite;
+
 use pixel_engine_draw::traits::SmartDrawingTrait;
 use px_draw::graphics::DrawingSprite;
 
@@ -376,12 +377,15 @@ impl Engine {
     }
 
     /// Create a GPU version of [`Sprite`]
-    pub fn create_decal(&mut self, sprite: &Sprite) -> decals::Decal {
-        decals::Decal::new(&mut self.handler, sprite)
+    pub fn create_decal(&mut self, sprite: &Sprite) -> Decal {
+        Decal::new(&mut self.handler, sprite)
     }
 
     /// Tell the GPU to destroy everything related to that [`Decal`]
-    pub fn destroy_decal(&mut self, decal: decals::Decal) {
-        decal.0.destroy(&mut self.handler);
+    pub fn destroy_decal(&mut self, mut decal: Decal) {
+        unsafe {
+            std::mem::ManuallyDrop::take(&mut decal.0).destroy(&mut self.handler);
+        }
+        std::mem::forget(decal);
     }
 }
