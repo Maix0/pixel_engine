@@ -16,7 +16,10 @@ impl Drop for Decal {
 
 impl Decal {
     pub(crate) fn new(ctx: &mut px_backend::Context, spr: &px_draw::graphics::Sprite) -> Self {
-        Decal(std::mem::ManuallyDrop::new(ctx.create_decal((&spr.get_raw(), (spr.width(), spr.height())))))
+        let (raw, _lock) = spr.get_read_lock();
+        Decal(std::mem::ManuallyDrop::new(
+            ctx.create_decal((raw, (spr.width(), spr.height()))),
+        ))
     }
 
     /// Get the size of the decal in pixel
@@ -621,6 +624,7 @@ impl DecalDraw for crate::Engine {
             normalize!({ pos[2] }, screen_size),
             normalize!({ pos[3] }, screen_size),
         ];
+        dbg!("Draw decal warped", &pos);
         let mut center: Vf2d = (0.0, 0.0).into();
         let mut di = px_backend::decals::DecalInstances {
             id: decal.0.id(),

@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [dependencies]
-pixel_engine= "0.5.2"
+pixel_engine= "0.5.3"
 world_transform = {path="../world_transform"}
 
 

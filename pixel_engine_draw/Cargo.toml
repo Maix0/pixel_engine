@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine_draw"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2021"
 license = "MIT"

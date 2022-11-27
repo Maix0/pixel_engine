@@ -18,7 +18,7 @@ name="map-edit"
 
 
 [dependencies]
-pixel_engine = "0.5.2"
+pixel_engine = "0.5.3"
 ron = "0.7.1"
 serde = "1.0.147"
 

@@ -1,6 +1,6 @@
 [package]
 name = "pixel_engine"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["maix0 <maix522@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -15,8 +15,8 @@ readme = "../README.md"
 
 
 [dependencies]
-pixel_engine_backend = "0.5.2"
-pixel_engine_draw    = "0.5.2"
+pixel_engine_backend = "0.5.3"
+pixel_engine_draw    = "0.5.3"
 futures = "0.3.25"
 instant = "0.1.12"
 

@@ -28,7 +28,8 @@ pub struct DecalContextManager {
 }
 
 impl DecalContextManager {
-    #[must_use] pub fn new(device: &wgpu::Device) -> (Self, wgpu::CommandBuffer) {
+    #[must_use]
+    pub fn new(device: &wgpu::Device) -> (Self, wgpu::CommandBuffer) {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("decal"),
         });
@@ -122,7 +123,8 @@ impl Decal {
         ctx.dcm.decal_textures.remove(&self.id);
     }
 
-    #[must_use] pub fn id(&self) -> DecalTextureID {
+    #[must_use]
+    pub fn id(&self) -> DecalTextureID {
         self.id
     }
 }
@@ -149,7 +151,7 @@ where
         device: &'b mut wgpu::Device,
         queue: &'b mut wgpu::Queue,
     ) {
-        for decal_instance in &dcm.decal_instances {
+        for decal_instance in dcm.decal_instances.drain(..) {
             let texture = {
                 let t = dcm.decal_textures.get(&decal_instance.id);
                 if t.is_none() {
@@ -220,6 +222,5 @@ where
             self.set_vertex_buffer(0, dcm.buffer_vertex.slice(..));
             self.draw_indexed(0..(crate::INDICES.len() as u32), 0, 0..1);
         }
-        dcm.decal_instances.clear();
     }
 }

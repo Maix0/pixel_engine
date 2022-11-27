@@ -278,8 +278,8 @@ impl Sprite {
 
         Ok(Sprite {
             size: Vu2d {
-                x: (&img).width(),
-                y: (&img).height(),
+                x: img.width(),
+                y: img.height(),
             },
             raw: Self::image_to_boxedslice(img),
             areas: Mutex::new(slab::Slab::new()),
@@ -360,11 +360,6 @@ impl Sprite {
         let sample_x = ((x * f64::from(self.width())) as u32).min(self.width() - 1);
         let sample_y = ((y * f64::from(self.height())) as u32).min(self.height() - 1);
         self.get_pixel(sample_x, sample_y)
-    }
-
-    /// Return the raw Image of the sprite
-    pub fn get_raw(&self) -> Box<[u8]> {
-        self.get_read_lock().0.to_vec().into_boxed_slice()
     }
 }
 

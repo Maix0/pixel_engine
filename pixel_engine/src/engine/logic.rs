@@ -213,9 +213,11 @@ impl EngineWrapper {
                     }
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                engine.handler.render(&engine.screen.get_ref().get_raw());
+                let (raw, readlock) = engine.screen.get_ref().get_read_lock();
+                engine.handler.render(raw);
                 redraw = false;
                 redraw_last_frame = true;
+                drop(readlock);
             }
         });
     }
