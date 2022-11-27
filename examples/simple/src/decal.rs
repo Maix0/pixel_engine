@@ -33,6 +33,9 @@ async fn init() {
 
     let mut warp = 5_f32;
     game.run(move |game: &mut px::Engine| {
+        if game.get_key(px::inputs::Keycodes::Escape).any() {
+            return Ok(false);
+        }
         // Draw Decal: game.draw_decal
         // Draw Decal: game.draw_partial_decal
         // Draw Decal: game.draw_decal_scaled

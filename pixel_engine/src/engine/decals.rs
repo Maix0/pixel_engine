@@ -624,7 +624,6 @@ impl DecalDraw for crate::Engine {
             normalize!({ pos[2] }, screen_size),
             normalize!({ pos[3] }, screen_size),
         ];
-        dbg!("Draw decal warped", &pos);
         let mut center: Vf2d = (0.0, 0.0).into();
         let mut di = px_backend::decals::DecalInstances {
             id: decal.0.id(),
