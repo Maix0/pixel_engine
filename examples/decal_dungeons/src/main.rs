@@ -313,7 +313,7 @@ async fn game() {
             &tilesheet_decal,
         );
         //engine.clear(Color::BLACK);
-        /*for (index, cell) in world.enumerate_cell() {
+        for (index, cell) in world.enumerate_cell() {
             let index = index.cast_f32();
             create_face_quads(
                 index,
@@ -327,7 +327,7 @@ async fn game() {
                 &mut quads,
             );
         }
-        */
+
         create_face_quads(
             (0.0, 0.0).into(),
             &selected_cell,

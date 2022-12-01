@@ -58,6 +58,7 @@ async fn init() {
             draw_type = 3;
             sub_draw_max = 4;
         }
+
         if game.get_key(px::inputs::Keycodes::A).any() {
             sub_draw_type = 1;
         }
@@ -82,6 +83,11 @@ async fn init() {
             angle = 0.0;
         } else if angle < 0.0 {
             angle = 2.0 * std::f32::consts::PI;
+        }
+
+        if game.get_key(px::inputs::Keycodes::Key5).any() {
+            draw_type = 5;
+            sub_draw_max = 1;
         }
 
         sub_draw_type = sub_draw_type.clamp(1, sub_draw_max);
@@ -204,8 +210,11 @@ async fn init() {
                 ),
                 _ => {}
             },
-            5 => {}
-            6 => game.draw_decal_tinted((010., 10.0), &decal, Color::YELLOW),
+            5 => {
+                game.draw_decal((10.0, 10.0), &decal);
+                game.draw_decal((10.0 + decal.size().0 as f32, 10.0), &decal);
+            }
+            6 => game.draw_decal_tinted((10.0, 10.0), &decal, Color::YELLOW),
             _ => {}
         };
         game.draw_text((0, 0), 1, Color::RED, &format!("{}", draw_type));
