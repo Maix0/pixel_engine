@@ -2,6 +2,8 @@ use crate::Vertex;
 use wgpu::util::DeviceExt;
 pub type DecalTextureID = usize;
 
+mod gpu_vector;
+
 #[derive(Debug)]
 pub struct DecalInstances {
     pub id: DecalTextureID,
@@ -23,7 +25,8 @@ pub struct DecalContextManager {
     decal_textures:
         std::collections::HashMap<DecalTextureID, (crate::texture::Texture, wgpu::BindGroup)>,
     pub decal_instances: Vec<DecalInstances>,
-    buffer_vertex: wgpu::Buffer,
+    vertex_vector: gpu_vector::GpuVector<[Vertex; 4]>,
+    cpu_vertex_vector: Vec<[Vertex; 4]>,
     buffer_index: wgpu::Buffer,
 }
 
@@ -33,14 +36,8 @@ impl DecalContextManager {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("decal"),
         });
-        let buffer_vertex = device.create_buffer(&wgpu::BufferDescriptor {
-            mapped_at_creation: false,
-            label: None,
-            size: crate::VERTEX_BUFFER_SIZE,
-            usage: wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::VERTEX
-                | wgpu::BufferUsages::COPY_SRC,
-        });
+        let vertex_vector =
+            gpu_vector::GpuVector::with_capacity(128, device, wgpu::BufferUsages::VERTEX);
         let buffer_index = {
             let b = device.create_buffer(&wgpu::BufferDescriptor {
                 mapped_at_creation: false,
@@ -71,9 +68,10 @@ impl DecalContextManager {
             Self {
                 id_generator: DecalIDGenerator(0),
                 buffer_index,
-                buffer_vertex,
-                decal_textures: std::collections::HashMap::with_capacity(10),
-                decal_instances: Vec::with_capacity(100),
+                vertex_vector,
+                decal_textures: std::collections::HashMap::with_capacity(64),
+                decal_instances: Vec::with_capacity(128),
+                cpu_vertex_vector: Vec::with_capacity(128),
             },
             encoder.finish(),
         )
@@ -151,76 +149,76 @@ where
         device: &'b mut wgpu::Device,
         queue: &'b mut wgpu::Queue,
     ) {
-        for decal_instance in dcm.decal_instances.drain(..) {
+        dcm.cpu_vertex_vector.clear();
+        for decal_instance in dcm.decal_instances.iter() {
+            dcm.cpu_vertex_vector.push([
+                Vertex {
+                    position: [decal_instance.pos[0].0, decal_instance.pos[0].1, 0.0],
+                    tex_coords: [
+                        decal_instance.uv[0].0,
+                        decal_instance.uv[0].1,
+                        decal_instance.w[0],
+                    ],
+                    tint: decal_instance.tint,
+                },
+                Vertex {
+                    position: [decal_instance.pos[1].0, decal_instance.pos[1].1, 0.0],
+                    tex_coords: [
+                        decal_instance.uv[1].0,
+                        decal_instance.uv[1].1,
+                        decal_instance.w[1],
+                    ],
+                    tint: decal_instance.tint,
+                },
+                Vertex {
+                    position: [decal_instance.pos[2].0, decal_instance.pos[2].1, 0.0],
+                    tex_coords: [
+                        decal_instance.uv[2].0,
+                        decal_instance.uv[2].1,
+                        decal_instance.w[2],
+                    ],
+                    tint: decal_instance.tint,
+                },
+                Vertex {
+                    position: [decal_instance.pos[3].0, decal_instance.pos[3].1, 0.0],
+                    tex_coords: [
+                        decal_instance.uv[3].0,
+                        decal_instance.uv[3].1,
+                        decal_instance.w[3],
+                    ],
+                    tint: decal_instance.tint,
+                },
+            ]);
+        }
+
+        let command = dcm
+            .vertex_vector
+            .sync(device, dcm.cpu_vertex_vector.as_slice());
+        let buffer = dcm.vertex_vector.buffer();
+        queue.submit(std::iter::once(command));
+
+        for (range, instance) in dcm
+            .vertex_vector
+            .iter_offsets()
+            .zip(dcm.decal_instances.iter())
+        {
             let texture = {
-                let t = dcm.decal_textures.get(&decal_instance.id);
+                let t = dcm.decal_textures.get(&instance.id);
                 if t.is_none() {
-                    return;
+                    dbg!("no texture");
+                    continue;
                 }
                 t.unwrap()
             };
 
             // Update buffers
-            {
-                let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("encoder_decal"),
-                });
-                encoder.copy_buffer_to_buffer(
-                    &device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("decal_buffer"),
-                        contents: bytemuck::cast_slice(&[
-                            Vertex {
-                                position: [decal_instance.pos[0].0, decal_instance.pos[0].1, 0.0],
-                                tex_coords: [
-                                    decal_instance.uv[0].0,
-                                    decal_instance.uv[0].1,
-                                    decal_instance.w[0],
-                                ],
-                                tint: decal_instance.tint,
-                            },
-                            Vertex {
-                                position: [decal_instance.pos[1].0, decal_instance.pos[1].1, 0.0],
-                                tex_coords: [
-                                    decal_instance.uv[1].0,
-                                    decal_instance.uv[1].1,
-                                    decal_instance.w[1],
-                                ],
-                                tint: decal_instance.tint,
-                            },
-                            Vertex {
-                                position: [decal_instance.pos[2].0, decal_instance.pos[2].1, 0.0],
-                                tex_coords: [
-                                    decal_instance.uv[2].0,
-                                    decal_instance.uv[2].1,
-                                    decal_instance.w[2],
-                                ],
-                                tint: decal_instance.tint,
-                            },
-                            Vertex {
-                                position: [decal_instance.pos[3].0, decal_instance.pos[3].1, 0.0],
-                                tex_coords: [
-                                    decal_instance.uv[3].0,
-                                    decal_instance.uv[3].1,
-                                    decal_instance.w[3],
-                                ],
-                                tint: decal_instance.tint,
-                            },
-                        ]),
-                        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::COPY_SRC,
-                    }),
-                    0,
-                    &dcm.buffer_vertex,
-                    0,
-                    crate::VERTEX_BUFFER_SIZE,
-                );
-                queue.submit(std::iter::once(encoder.finish()));
-            }
 
-            // Render things
             self.set_bind_group(0, &texture.1, &[]);
             self.set_index_buffer(dcm.buffer_index.slice(..), wgpu::IndexFormat::Uint16);
-            self.set_vertex_buffer(0, dcm.buffer_vertex.slice(..));
+            self.set_vertex_buffer(0, buffer.slice(range));
             self.draw_indexed(0..(crate::INDICES.len() as u32), 0, 0..1);
         }
+        //std::thread::sleep(std::time::Duration::from_millis(100));
+        //dcm.decal_instances.clear()
     }
 }

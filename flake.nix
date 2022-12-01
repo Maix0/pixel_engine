@@ -35,21 +35,43 @@
           buildInputs = [
             # Rust
             (rust-bin.stable.latest.default.override {
+              extensions = ["rust-src"];
+
               targets = ["wasm32-unknown-unknown" "x86_64-unknown-linux-gnu" "aarch64-linux-android"];
             })
-			cmake
-			fontconfig
+            cmake
+            fontconfig
             pkgconfig
-			# Web
+            # Web
             trunk
             wasm-bindgen-cli
             # android
             androidComposition.androidsdk
+
             cargo-ws
           ];
 
-          LIB_PATH = lib.makeLibraryPath [wayland wayland-protocols libxkbcommon vulkan-loader libGL androidComposition.androidsdk];
-          packages = [pkg-config libxkbcommon wayland-utils vulkan-headers vulkan-loader vulkan-validation-layers vulkan-tools androidComposition.androidsdk];
+          LIB_PATH = lib.makeLibraryPath [
+            #wayland wayland-protocols
+            xorg.libX11
+            xorg.libXcursor
+            xorg.libXrandr
+            xorg.libXi
+            libxkbcommon
+            vulkan-loader
+            libGL
+            androidComposition.androidsdk
+          ];
+          packages = [
+            pkg-config
+            libxkbcommon
+            #wayland-utils
+            vulkan-headers
+            vulkan-loader
+            vulkan-validation-layers
+            vulkan-tools
+            androidComposition.androidsdk
+          ];
 
           ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";
 

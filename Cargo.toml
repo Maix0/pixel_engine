@@ -4,6 +4,8 @@ members = [
   "pixel_engine",
   "pixel_engine_backend",
   "pixel_engine_draw",
+  "extensions/pixel_engine_console",
+  "extensions/pixel_engine_textinput",
   "examples/fake_mode7",
   "examples/intersection",
   "examples/fps_pixel",
@@ -18,6 +20,8 @@ members = [
 pixel_engine = { path = "./pixel_engine" }
 pixel_engine_draw = { path = "./pixel_engine_draw" }
 pixel_engine_backend = { path = "./pixel_engine_backend" }
+pixel_engine_console = { path = "./extensions/pixel_engine_console" }
+pixel_engine_textinput = { path = "./extensions/pixel_engine_textinput" }
 
 [profile.release]
 debug = true

@@ -1,10 +1,14 @@
 extern crate pixel_engine as px;
 #[macro_use]
 extern crate rust_embed;
+extern crate itertools;
 use px::graphics::Color;
 use px::inputs::Keycodes;
 use px::traits::*;
 use px::vector2::*;
+
+use itertools::Itertools;
+
 fn main() {
     px::launch(game());
 }
@@ -194,7 +198,7 @@ impl<const W: usize, const H: usize> World<W, H> {
     fn new() -> Self {
         Self {
             cells: [[Cell::Floor(CellData {
-                texture_id: [Vi2d { x: 0, y: 0 }; 6],
+                texture_id: [Vi2d { x: 0, y: 5 }; 6],
             }); W]; H],
         }
     }
@@ -294,25 +298,27 @@ async fn game() {
     //drop(tilesheet_spr);
 
     let mut camera_pos = Vec3d::new(0.0, 10.0, 0.0);
-    let mut camera_angle = 0.0;
-    let mut camera_pitch = 5.5;
+    let mut camera_angle = 2.0;
+    let mut camera_pitch = 1.5;
     let mut camera_zoom = 16.0;
 
     let mut quads: Vec<Quad> = Vec::with_capacity(512);
 
-    let mut visible_faces = [true; 6];
+    let mut visible_faces: [bool; 6] = [false; 6];
+    visible_faces[0] = true;
 
-    let mut world: World<32, 32> = World::new();
+    let mut world: World<4, 4> = World::new();
     let selected_cell = Cell::Wall(CellData {
         texture_id: [(1, 1).into(); 6],
     });
+
     wrapper.clear(Color::BLACK);
     wrapper.run(move |engine: &mut px::Engine| {
-        engine.draw_warped_decal(
-            [(0.0, 0.0), (512.0, 0.0), (512.0, 512.0), (0.0, 512.0)],
-            &tilesheet_decal,
-        );
-        //engine.clear(Color::BLACK);
+        engine.clear(Color::BLACK);
+        //engine.draw_warped_decal(
+        //    [(0.0, 0.0), (0.0, 512.0), (512.0, 512.0), (512.0, 0.0)],
+        //    &tilesheet_decal,
+        //);
         for (index, cell) in world.enumerate_cell() {
             let index = index.cast_f32();
             create_face_quads(
@@ -328,6 +334,7 @@ async fn game() {
             );
         }
 
+        // /*
         create_face_quads(
             (0.0, 0.0).into(),
             &selected_cell,
@@ -339,22 +346,70 @@ async fn game() {
             &visible_faces,
             &mut quads,
         );
-
+        // */
         quads.sort_by(|lhs, rhs| {
             let z1 = lhs.points[0].z + lhs.points[1].z + lhs.points[2].z + lhs.points[3].z;
             let z2 = rhs.points[0].z + rhs.points[1].z + rhs.points[2].z + rhs.points[3].z;
             z1.total_cmp(&z2)
         });
-        if engine.get_key(Keycodes::Space).pressed {
-            dbg!(&quads);
+
+        if engine.get_key(Keycodes::A).any() {
+            camera_angle += 0.2 * engine.elapsed as f32;
+        } else if engine.get_key(Keycodes::Z).any() {
+            camera_angle -= 0.2 * engine.elapsed as f32;
+        }
+        if engine.get_key(Keycodes::E).any() {
+            camera_pitch += 0.2 * engine.elapsed as f32;
+        } else if engine.get_key(Keycodes::D).any() {
+            camera_pitch -= 0.2 * engine.elapsed as f32;
         }
 
+        if engine.get_key(Keycodes::W).any() {
+            camera_zoom += 10.0 * engine.elapsed as f32;
+            camera_zoom = camera_zoom.clamp(1.0, 100.0);
+        } else if engine.get_key(Keycodes::X).any() {
+            camera_zoom -= 10.0 * engine.elapsed as f32;
+            camera_zoom = camera_zoom.clamp(1.0, 100.0);
+        }
+        /*
+        if engine.get_key(Keycodes::Z).pressed {
+            index = (index + 1) % index_map;
+        } else if engine.get_key(Keycodes::A).pressed {
+            index = (index + index_map - 1) % index_map;
+        }
+
+        let p = [
+            points[index][0],
+            points[index][1],
+            points[index][2],
+            points[index][3],
+        ];
+
+
+        engine.draw_warped_decal(p, &tilesheet_decal);
+        */
+        if engine.get_key(Keycodes::Space).pressed {
+            println!("{:?}", quads.len());
+            println!("angle: {camera_angle} | pitch: {camera_pitch} | zoom: {camera_zoom}");
+            println!("world_size: {}", world.enumerate_cell().count());
+        }
         for quad in quads.drain(..) {
-            break;
-            engine.draw_warped_decal(
-                quad.points.map(|v| Vf2d { x: v.x, y: v.y }),
-                //quad.tile_id.cast_f32() * tile_size,
-                //tile_size,
+            let points = quad.points.map(|v| Vf2d { x: v.x, y: v.y });
+
+            // /*
+            for (p, color) in points
+                .iter()
+                .copied()
+                .map(Vf2d::cast_i32)
+                .zip([Color::YELLOW, Color::RED, Color::WHITE, Color::GREEN].into_iter())
+            {
+                engine.fill_circle(p, 2, color);
+            }
+            // */
+            engine.draw_warped_partial_decal(
+                points,
+                quad.tile_id.cast_f32() * tile_size,
+                tile_size,
                 &tilesheet_decal,
             );
         }

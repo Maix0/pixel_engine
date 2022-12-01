@@ -7,5 +7,6 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+itertools = "0.10.5"
 pixel_engine = "0.5.5"
 rust-embed = { version = "6.4.2", features = ["interpolate-folder-path"] }
