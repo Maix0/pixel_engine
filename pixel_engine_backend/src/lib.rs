@@ -123,7 +123,7 @@ impl Context {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
+                    features: wgpu::Features::empty(),
                     #[cfg(not(target_arch = "wasm32"))]
                     limits: Default::default(),
                     #[cfg(target_arch = "wasm32")]

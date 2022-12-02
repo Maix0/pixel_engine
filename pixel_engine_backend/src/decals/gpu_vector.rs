@@ -8,7 +8,7 @@ pub struct GpuVector<T: bytemuck::Pod> {
     marker: std::marker::PhantomData<fn() -> T>,
 }
 
-impl<T: bytemuck::Pod + std::fmt::Debug + std::cmp::PartialEq> GpuVector<T> {
+impl<T: bytemuck::Pod> GpuVector<T> {
     #[allow(unused)]
     /// Create a buffer with capacity 0
     pub fn new(device: &wgpu::Device, usage: wgpu::BufferUsages) -> Self {
@@ -47,11 +47,7 @@ impl<T: bytemuck::Pod + std::fmt::Debug + std::cmp::PartialEq> GpuVector<T> {
         }
     }
 
-    pub fn sync(
-        &mut self,
-        device: &wgpu::Device,
-        data: &[T],
-    ) -> wgpu::CommandBuffer {
+    pub fn sync(&mut self, device: &wgpu::Device, data: &[T]) -> wgpu::CommandBuffer {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("gpu_vector_encoder"),
         });
