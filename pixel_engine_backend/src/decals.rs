@@ -3,6 +3,7 @@ use wgpu::util::DeviceExt;
 pub type DecalTextureID = usize;
 
 mod gpu_vector;
+mod swap_buffer;
 
 #[derive(Debug)]
 pub struct DecalInstances {
@@ -24,7 +25,7 @@ pub struct DecalContextManager {
     id_generator: DecalIDGenerator,
     decal_textures:
         std::collections::HashMap<DecalTextureID, (crate::texture::Texture, wgpu::BindGroup)>,
-    pub decal_instances: Vec<DecalInstances>,
+    pub decal_instances: swap_buffer::SwapBuffer<DecalInstances>,
     vertex_vector: gpu_vector::GpuVector<[Vertex; 4]>,
     cpu_vertex_vector: Vec<[Vertex; 4]>,
     buffer_index: wgpu::Buffer,
@@ -70,7 +71,7 @@ impl DecalContextManager {
                 buffer_index,
                 vertex_vector,
                 decal_textures: std::collections::HashMap::with_capacity(64),
-                decal_instances: Vec::with_capacity(128),
+                decal_instances: swap_buffer::SwapBuffer::with_capacity(128),
                 cpu_vertex_vector: Vec::with_capacity(128),
             },
             encoder.finish(),
@@ -202,14 +203,7 @@ where
             .iter_offsets()
             .zip(dcm.decal_instances.iter())
         {
-            let texture = {
-                let t = dcm.decal_textures.get(&instance.id);
-                if t.is_none() {
-                    dbg!("no texture");
-                    continue;
-                }
-                t.unwrap()
-            };
+            let Some(texture) = dcm.decal_textures.get(&instance.id) else {continue};
 
             // Update buffers
 
@@ -218,7 +212,7 @@ where
             self.set_vertex_buffer(0, buffer.slice(range));
             self.draw_indexed(0..(crate::INDICES.len() as u32), 0, 0..1);
         }
-        //std::thread::sleep(std::time::Duration::from_millis(100));
-        //dcm.decal_instances.clear()
+        dcm.decal_instances.switch();
+        dcm.decal_instances.clear();
     }
 }
