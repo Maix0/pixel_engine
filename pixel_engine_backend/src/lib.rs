@@ -34,7 +34,7 @@ pub trait VertexTrait {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable, PartialEq)]
 pub(crate) struct Vertex {
     position: [f32; 3],
     // UV + q for warped Decal
@@ -123,7 +123,7 @@ impl Context {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
+                    features: wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
                     #[cfg(not(target_arch = "wasm32"))]
                     limits: Default::default(),
                     #[cfg(target_arch = "wasm32")]

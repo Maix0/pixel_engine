@@ -49,6 +49,9 @@
             androidComposition.androidsdk
 
             cargo-ws
+            freetype
+            mold
+            clang
           ];
 
           LIB_PATH = lib.makeLibraryPath [
@@ -61,16 +64,22 @@
             vulkan-loader
             libGL
             androidComposition.androidsdk
+            fontconfig
+            freetype
           ];
           packages = [
             pkg-config
             libxkbcommon
+            freetype
             #wayland-utils
             vulkan-headers
             vulkan-loader
             vulkan-validation-layers
             vulkan-tools
             androidComposition.androidsdk
+            mold
+            fontconfig
+            clang
           ];
 
           ANDROID_SDK_ROOT = "${androidComposition.androidsdk}/libexec/android-sdk";

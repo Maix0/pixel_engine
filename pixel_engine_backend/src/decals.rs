@@ -3,7 +3,6 @@ use wgpu::util::DeviceExt;
 pub type DecalTextureID = usize;
 
 mod gpu_vector;
-mod swap_buffer;
 
 #[derive(Debug)]
 pub struct DecalInstances {
@@ -14,7 +13,7 @@ pub struct DecalInstances {
     pub tint: [f32; 4],
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Decal {
     id: DecalTextureID,
     pub size: (u32, u32),
@@ -25,7 +24,7 @@ pub struct DecalContextManager {
     id_generator: DecalIDGenerator,
     decal_textures:
         std::collections::HashMap<DecalTextureID, (crate::texture::Texture, wgpu::BindGroup)>,
-    pub decal_instances: swap_buffer::SwapBuffer<DecalInstances>,
+    pub decal_instances: Vec<DecalInstances>,
     vertex_vector: gpu_vector::GpuVector<[Vertex; 4]>,
     cpu_vertex_vector: Vec<[Vertex; 4]>,
     buffer_index: wgpu::Buffer,
@@ -71,7 +70,7 @@ impl DecalContextManager {
                 buffer_index,
                 vertex_vector,
                 decal_textures: std::collections::HashMap::with_capacity(64),
-                decal_instances: swap_buffer::SwapBuffer::with_capacity(128),
+                decal_instances: Vec::with_capacity(128),
                 cpu_vertex_vector: Vec::with_capacity(128),
             },
             encoder.finish(),
@@ -118,7 +117,7 @@ impl Decal {
         }
     }
 
-    pub fn destroy(self, ctx: &mut crate::Context) {
+    pub fn destroy(&self, ctx: &mut crate::Context) {
         ctx.dcm.decal_textures.remove(&self.id);
     }
 
@@ -150,7 +149,6 @@ where
         device: &'b mut wgpu::Device,
         queue: &'b mut wgpu::Queue,
     ) {
-        dcm.cpu_vertex_vector.clear();
         for decal_instance in dcm.decal_instances.iter() {
             dcm.cpu_vertex_vector.push([
                 Vertex {
@@ -192,18 +190,19 @@ where
             ]);
         }
 
-        let command = dcm
-            .vertex_vector
-            .sync(device, dcm.cpu_vertex_vector.as_slice());
-        let buffer = dcm.vertex_vector.buffer();
+        let command = dcm.vertex_vector.sync(device, &dcm.cpu_vertex_vector);
         queue.submit(std::iter::once(command));
+        let buffer = dcm.vertex_vector.buffer();
 
         for (range, instance) in dcm
             .vertex_vector
             .iter_offsets()
-            .zip(dcm.decal_instances.iter())
+            .zip(dcm.decal_instances.drain(..))
         {
-            let Some(texture) = dcm.decal_textures.get(&instance.id) else {continue};
+            let Some(texture) = dcm.decal_textures.get(&instance.id) else {
+                    eprintln!("You tried to use a non-valid decal");
+                    continue
+            };
 
             // Update buffers
 
@@ -212,7 +211,6 @@ where
             self.set_vertex_buffer(0, buffer.slice(range));
             self.draw_indexed(0..(crate::INDICES.len() as u32), 0, 0..1);
         }
-        dcm.decal_instances.switch();
-        dcm.decal_instances.clear();
+        dcm.cpu_vertex_vector.clear();
     }
 }

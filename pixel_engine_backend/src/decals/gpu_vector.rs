@@ -8,7 +8,8 @@ pub struct GpuVector<T: bytemuck::Pod> {
     marker: std::marker::PhantomData<fn() -> T>,
 }
 
-impl<T: bytemuck::Pod> GpuVector<T> {
+impl<T: bytemuck::Pod + std::fmt::Debug + std::cmp::PartialEq> GpuVector<T> {
+    #[allow(unused)]
     /// Create a buffer with capacity 0
     pub fn new(device: &wgpu::Device, usage: wgpu::BufferUsages) -> Self {
         let usage = usage | wgpu::BufferUsages::COPY_DST;
@@ -46,7 +47,11 @@ impl<T: bytemuck::Pod> GpuVector<T> {
         }
     }
 
-    pub fn sync(&mut self, device: &wgpu::Device, data: &[T]) -> wgpu::CommandBuffer {
+    pub fn sync(
+        &mut self,
+        device: &wgpu::Device,
+        data: &[T],
+    ) -> wgpu::CommandBuffer {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("gpu_vector_encoder"),
         });
@@ -65,10 +70,10 @@ impl<T: bytemuck::Pod> GpuVector<T> {
                 mapped_at_creation: false,
             });
         }
-        let raw_data: &[u8] = bytemuck::cast_slice(data);
+        let raw_data: &[u8] = bytemuck::cast_slice(&data);
         encoder.copy_buffer_to_buffer(
             &device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
+                label: Some("gpu_vector_temp_buffer"),
                 contents: raw_data,
                 usage: wgpu::BufferUsages::COPY_SRC,
             }),
@@ -77,6 +82,8 @@ impl<T: bytemuck::Pod> GpuVector<T> {
             0,
             raw_data.len() as u64,
         );
+        self.len = data.len();
+
         encoder.finish()
     }
 

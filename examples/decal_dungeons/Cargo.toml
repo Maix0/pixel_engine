@@ -8,5 +8,5 @@ publish = false
 
 [dependencies]
 itertools = "0.10.5"
-pixel_engine = "0.5.5"
+pixel_engine = "0.6.0"
 rust-embed = { version = "6.4.2", features = ["interpolate-folder-path"] }

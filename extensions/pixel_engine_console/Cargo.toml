@@ -2,11 +2,11 @@
 name = "pixel_engine_console"
 version = "0.0.0"
 edition = "2021"
-
+publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 heapless = "0.7.16"
 log = "0.4.17"
-pixel_engine = { version = "0.5.5" }
+pixel_engine = { version = "0.6.0" }
 pixel_engine_textinput = {path = "../pixel_engine_textinput" }

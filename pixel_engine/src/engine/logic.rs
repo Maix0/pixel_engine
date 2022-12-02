@@ -243,6 +243,7 @@ pub struct Engine {
     /* BACKEND */
     pub(crate) screen: DrawingSprite<Sprite>,
     pub(crate) handler: px_backend::Context,
+    pub(crate) textsheet_decal: Decal,
     k_pressed: std::collections::HashSet<inputs::Key>,
     k_held: std::collections::HashSet<inputs::Key>,
     k_released: std::collections::HashSet<inputs::Key>,
@@ -258,6 +259,13 @@ impl std::fmt::Debug for Engine {
             .field("elapsed", &self.elapsed)
             .field("screen", &self.screen)
             .finish()
+    }
+}
+
+impl Drop for Engine {
+    fn drop(&mut self) {
+        let decal = self.textsheet_decal.clone_decal();
+        self.destroy_decal(&decal);
     }
 }
 
@@ -309,8 +317,10 @@ impl Engine {
             }
         }
 
-        let handler = px_backend::Context::new(&window, size).await;
-
+        let mut handler = px_backend::Context::new(&window, size).await;
+        let screen = DrawingSprite::new(Sprite::new(size.0, size.1));
+        let textsheet_decal =
+            crate::decals::Decal::new(&mut handler, SmartDrawingTrait::get_textsheet(&screen));
         Engine {
             /* FRONTEND */
             size,
@@ -323,7 +333,8 @@ impl Engine {
             elapsed: 0f64,
             /* BACKEND */
             handler,
-            screen: DrawingSprite::new(Sprite::new(size.0, size.1)),
+            screen,
+            textsheet_decal,
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
@@ -384,10 +395,11 @@ impl Engine {
     }
 
     /// Tell the GPU to destroy everything related to that [`Decal`]
-    pub fn destroy_decal(&mut self, mut decal: Decal) {
-        unsafe {
-            std::mem::ManuallyDrop::take(&mut decal.0).destroy(&mut self.handler);
-        }
-        std::mem::forget(decal);
+    /// it takes the decal by reference since it is not possible to pass by value.
+    /// trying to draw the decal afterwards will just not render anything, but may affect
+    /// performance if you try to draw lots of "zombie" decals
+    pub fn destroy_decal(&mut self, decal: &Decal) {
+        decal.0.destroy(&mut self.handler);
+        decal.1.set(false);
     }
 }
