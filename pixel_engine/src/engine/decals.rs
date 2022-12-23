@@ -12,14 +12,6 @@ pub struct Decal(
     pub(crate) std::cell::Cell<bool>, // is the decal still valid ?
 );
 
-impl Drop for Decal {
-    fn drop(&mut self) {
-        if cfg!(debug_assertions) && self.1.get() {
-            eprintln!("You need to destroy the decal using the apropriate method and not though the drop impl");
-        }
-    }
-}
-
 impl Decal {
     pub(crate) fn new(ctx: &mut px_backend::Context, spr: &px_draw::graphics::Sprite) -> Self {
         let (raw, _lock) = spr.get_read_lock();
@@ -1035,10 +1027,11 @@ impl DecalText for crate::Engine {
                     self.draw_partial_decal_tinted(
                         pos,
                         &textsheet_decal,
-                        (px_draw::vector2::Vu2d { x: ox, y: oy }).cast_f32(),
+                        (px_draw::vector2::Vu2d { x: ox, y: oy }).cast_f32() * 8.0,
                         Vf2d { x: 8.0, y: 8.0 },
                         color,
                     );
+                    pos.x += scale.x * 8.0;
                 }
                 _ => pos.x += scale.x * 8.0,
             }

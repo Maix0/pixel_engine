@@ -778,7 +778,7 @@ fn create_text() -> &'static Sprite {
                 let r: u32 = sym1 << 18 | sym2 << 12 | sym3 << 6 | sym4;
                 for i in 0..24 {
                     let k = if (r & (1 << i)) == 0 { 0 } else { 255 };
-                    sheet.set_pixel(px, py, [k, k, k].into());
+                    sheet.set_pixel(px, py, [k, k, k, k].into());
                     py += 1;
                     if py == 48 {
                         px += 1;

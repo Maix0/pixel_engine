@@ -239,7 +239,7 @@ impl Context {
                     #[cfg(not(target_arch = "wasm32"))]
                     format: wgpu::TextureFormat::Bgra8UnormSrgb,
                     write_mask: wgpu::ColorWrites::ALL,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 })],
             }),
             depth_stencil: None,
@@ -249,7 +249,7 @@ impl Context {
                 topology: wgpu::PrimitiveTopology::TriangleList, // 1.
                 strip_index_format: None,                        //
                 front_face: wgpu::FrontFace::Ccw,                // 2.
-                cull_mode: None,
+                cull_mode: Some(wgpu::Face::Back),
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
@@ -258,7 +258,7 @@ impl Context {
             multisample: wgpu::MultisampleState {
                 count: 1,                         // 2.
                 mask: !0,                         // 3.
-                alpha_to_coverage_enabled: false, // 4.
+                alpha_to_coverage_enabled: true, // 4.
             },
             // color_states: &[wgpu::ColorStateDescriptor {
             //     format: sc_desc.format,

@@ -80,13 +80,38 @@ impl EngineWrapper {
                     window_id,
                 } if window_id == engine.window.id() => match e {
                     WindowEvent::KeyboardInput { input: inp, .. } => {
-                        if let Some(k) = inp.virtual_keycode {
-                            if inp.state == winit::event::ElementState::Released {
-                                engine.k_pressed.remove(&inputs::Key::from(inp));
-                                engine.k_held.remove(&inputs::Key::from(inp));
-                                engine.k_released.insert(inputs::Key::from(inp));
-                            } else if !engine.k_held.has(k) {
-                                engine.k_pressed.insert(inputs::Key::from(inp));
+                        if !engine.input_toggle {
+                            if let Some(k) = inp.virtual_keycode {
+                                if inp.state == winit::event::ElementState::Released {
+                                    engine.k_pressed.remove(&inputs::Key::from(inp));
+                                    engine.k_held.remove(&inputs::Key::from(inp));
+                                    engine.k_released.insert(inputs::Key::from(inp));
+                                } else if !engine.k_held.has(k) {
+                                    engine.k_pressed.insert(inputs::Key::from(inp));
+                                }
+                            }
+                        } else if inp.state == px_backend::winit::event::ElementState::Pressed {
+                            match inp.virtual_keycode {
+                                Some(winit::event::VirtualKeyCode::Escape) => {
+                                    engine.input_toggle = false;
+                                }
+                                Some(winit::event::VirtualKeyCode::Back) => {
+                                    if !engine.input_buffer.is_empty() && engine.input_cursor > 0 {
+                                        engine.input_buffer.remove(engine.input_cursor - 1);
+                                        engine.input_cursor = engine.input_cursor.saturating_sub(1);
+                                    };
+                                }
+                                Some(winit::event::VirtualKeyCode::Return) => {
+                                    engine.finish_input = true;
+                                }
+                                Some(winit::event::VirtualKeyCode::Left) => {
+                                    engine.input_cursor = engine.input_cursor.saturating_sub(1);
+                                }
+                                Some(winit::event::VirtualKeyCode::Right) => {
+                                    engine.input_cursor =
+                                        engine.input_buffer.len().min(engine.input_cursor + 1);
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -176,6 +201,13 @@ impl EngineWrapper {
                             }
                         }
                     }
+                    WindowEvent::ReceivedCharacter(char)
+                        if engine.input_toggle && char.is_ascii() && !char.is_control() =>
+                    {
+                        engine.input_buffer.insert(engine.input_cursor, char);
+                        engine.input_cursor += 1;
+                    }
+                    //event => println!("missed_event: {event:?}"),
                     _ => {}
                 },
                 Event::RedrawRequested(_) => {
@@ -184,7 +216,7 @@ impl EngineWrapper {
                 Event::MainEventsCleared => {
                     engine.window.request_redraw();
                 }
-                _ => {}
+                _ => {} //event => println!("missed_window_event: {event:?}"),
             }
             if redraw {
                 engine.elapsed = (instant::Instant::now()
@@ -244,6 +276,10 @@ pub struct Engine {
     pub(crate) screen: DrawingSprite<Sprite>,
     pub(crate) handler: px_backend::Context,
     pub(crate) textsheet_decal: Decal,
+    input_buffer: String,
+    input_toggle: bool,
+    input_cursor: usize,
+    finish_input: bool,
     k_pressed: std::collections::HashSet<inputs::Key>,
     k_held: std::collections::HashSet<inputs::Key>,
     k_released: std::collections::HashSet<inputs::Key>,
@@ -321,6 +357,7 @@ impl Engine {
         let screen = DrawingSprite::new(Sprite::new(size.0, size.1));
         let textsheet_decal =
             crate::decals::Decal::new(&mut handler, SmartDrawingTrait::get_textsheet(&screen));
+        
         Engine {
             /* FRONTEND */
             size,
@@ -335,6 +372,10 @@ impl Engine {
             handler,
             screen,
             textsheet_decal,
+            input_buffer: String::with_capacity(32),
+            input_toggle: false,
+            input_cursor: 0,
+            finish_input: false,
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
@@ -388,13 +429,68 @@ impl Engine {
     pub fn get_pressed(&self) -> std::collections::HashSet<inputs::Keycodes> {
         self.k_pressed.clone().iter().map(|k| k.key).collect()
     }
+    /// Get all the keys that were held during the last frame
+    pub fn get_held(&self) -> std::collections::HashSet<inputs::Keycodes> {
+        self.k_held.clone().iter().map(|k| k.key).collect()
+    }
+    /// Get all the keys that were released during the last frame
+    pub fn get_released(&self) -> std::collections::HashSet<inputs::Keycodes> {
+        self.k_released.clone().iter().map(|k| k.key).collect()
+    }
 
     /// Create a GPU version of [`Sprite`]
     pub fn create_decal(&mut self, sprite: &Sprite) -> Decal {
         Decal::new(&mut self.handler, sprite)
     }
 
-    /// Tell the GPU to destroy everything related to that [`Decal`]
+    /// Switch to text input mode, return true if it wasn't in this mode before
+    pub fn start_input(&mut self) {
+        self.input_toggle = true;
+    }
+
+    /// This will clear the input buffer, reset the input cursor and stop the input mode
+    pub fn force_stop_input_mode(&mut self) {
+        self.input_buffer.clear();
+        self.input_cursor = 0;
+        self.input_toggle = false;
+    }
+
+    /// Is the engine in input mode
+    pub fn is_in_input_mode(&self) -> bool {
+        self.input_toggle
+    }
+
+    /// Stop the input mode right there, and return a &str to the current buffer. This is if you
+    /// need to leave the mode but retain the input buffer for a later re-entry
+    pub fn end_input_mode(&mut self) -> &str {
+        self.input_toggle = false;
+        self.input_buffer.as_str()
+    }
+
+    /// Return the string when input mode ends (when the key `Enter` has been pressed)
+    /// This is different than [`end_input_mode`](Engine::end_input_mode) as it will return the
+    /// buffer (and create a new empty one).
+    /// This is used when you want to wait until the user has finished typing
+    pub fn try_get_finished_input(&mut self) -> Option<String> {
+        let ret = self.finish_input.then(|| {
+            self.input_cursor = 0;
+            std::mem::replace(&mut self.input_buffer, String::with_capacity(32))
+        });
+        self.finish_input = false;
+        ret
+    }
+
+    /// Return the current input buffer as a [string slice](str)
+    pub fn get_input_buffer(&self) -> &str {
+        self.input_buffer.as_str()
+    }
+
+    /// Return the current input cursor position
+    pub fn get_input_cursor(&self) -> usize {
+        self.input_cursor
+    }
+
+    /// Tell the GPU to destroy everything related to that [`Decal`](crate::Decal)
     /// it takes the decal by reference since it is not possible to pass by value.
     /// trying to draw the decal afterwards will just not render anything, but may affect
     /// performance if you try to draw lots of "zombie" decals
