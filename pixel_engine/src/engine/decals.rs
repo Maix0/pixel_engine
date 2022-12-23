@@ -347,8 +347,8 @@ impl DecalDraw for crate::Engine {
         };
         for i in 0..4 {
             di.pos[i] = (
-                (pos[i].x / (self.size.0) as f32) * 2.0 - 1.0,
-                ((pos[i].y / (self.size.1) as f32) * 2.0 - 1.0) * -1.0,
+                (pos[i].x / (self.size().x) as f32) * 2.0 - 1.0,
+                ((pos[i].y / (self.size().y) as f32) * 2.0 - 1.0) * -1.0,
             );
             di.uv[i] = (uv[i].x, uv[i].y);
         }
@@ -464,7 +464,7 @@ impl DecalDraw for crate::Engine {
     #[inline]
     fn draw_decal_tinted<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, tint: Color) {
         into!(pos);
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         let topleft = normalize!(pos, screen_size);
         let bottomright = normalize!(
             {
@@ -498,7 +498,7 @@ impl DecalDraw for crate::Engine {
         tint: Color,
     ) {
         into!(scale, pos);
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         let topleft = normalize!(pos, screen_size);
         let bottomright = normalize!(
             {
@@ -535,7 +535,7 @@ impl DecalDraw for crate::Engine {
         tint: Color,
     ) {
         into!(pos, source_pos, source_size);
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         let topleft = normalize!(pos, screen_size);
         let bottomright = normalize!(
             {
@@ -581,7 +581,7 @@ impl DecalDraw for crate::Engine {
         tint: Color,
     ) {
         into!(pos, source_pos, source_size, scale);
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         let topleft = normalize!(pos, screen_size);
         let bottomright = normalize!(
             {
@@ -627,7 +627,7 @@ impl DecalDraw for crate::Engine {
         const POINT_TWO: usize = 0;
         const POINT_THREE: usize = 1;
         const POINT_FOUR: usize = 2;
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
         let pos: [Vf2d; 4] = [
             normalize!({ pos[0] }, screen_size),
@@ -690,7 +690,7 @@ impl DecalDraw for crate::Engine {
         const POINT_TWO: usize = 0;
         const POINT_THREE: usize = 1;
         const POINT_FOUR: usize = 2;
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         into!(source_pos, source_size);
         let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
         let pos: [Vf2d; 4] = [
@@ -758,7 +758,7 @@ impl DecalDraw for crate::Engine {
         angle: f32,
         tint: Color,
     ) {
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         into!(pos, center);
         let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
         pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
@@ -814,7 +814,7 @@ impl DecalDraw for crate::Engine {
         scale: P,
         tint: Color,
     ) {
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
         into!(pos, center, scale);
         let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
         pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
@@ -861,7 +861,7 @@ impl DecalDraw for crate::Engine {
         source_size: P,
         tint: Color,
     ) {
-        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
 
         let uv_scale: Vf2d = decal.0.uv_scale.into();
         into!(pos, center, source_pos, source_size);
@@ -917,7 +917,7 @@ impl DecalDraw for crate::Engine {
         tint: Color,
     ) {
             into!(pos, center, source_pos, source_size, scaled);
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+            let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
             let uv_scale: Vf2d = decal.0.uv_scale.into();
             let uv_topleft = source_pos * uv_scale;
             let uv_bottomright = uv_topleft + (source_size * uv_scale);
