@@ -41,15 +41,27 @@ impl EngineWrapper {
     pub fn new_sync(title: String, size: (u32, u32, u32)) -> Self {
         Self(Some(Engine::new_sync(title, size)))
     }
+
+    /// This will first create the game instance, then run the main loop of the game
+    pub fn run_init<G: crate::Game + 'static>(mut self) -> ! {
+        let game = match G::create(&mut self) {
+            Ok(game) => game,
+            Err(e) => {
+                if cfg!(debug_assertions) {
+                    println!("Game Stopped:\n{:?}", e);
+                } else {
+                    println!("Game Stopped:\n{}", e);
+                }
+                std::process::abort();
+            }
+        };
+
+        self.run(game);
+    }
     /// The core of your program,
-    ///
-    /// Takes a function F that will be run every frame, It will do the event handling  and similar
-    /// things between frames.
+    /// This takes an already existing implementation of a [Game](crate::Game) `G`
     #[allow(clippy::too_many_lines, clippy::missing_panics_doc)]
-    pub fn run<F>(mut self, mut main_func: F) -> !
-    where
-        F: (FnMut(&mut Engine) -> Result<bool, Box<dyn std::error::Error>>) + 'static,
-    {
+    pub fn run<G: crate::Game + 'static>(mut self, mut game: G) -> ! {
         let mut engine = self.0.take().unwrap();
         let mut force_exit = false;
         let event_loop = engine.event_loop.take().unwrap();
@@ -73,6 +85,11 @@ impl EngineWrapper {
                 }
                 engine.mouse.wheel = MouseWheel::None;
                 redraw_last_frame = false;
+                crate::decals::DECAL_HANDLER.with(|key| {
+                    key.borrow_mut()
+                        .drain(..)
+                        .for_each(|decal| decal.destroy(&mut engine.handler));
+                });
             }
             match e {
                 Event::WindowEvent {
@@ -234,7 +251,7 @@ impl EngineWrapper {
                         .set_title(&format!("{} - {}fps", engine.title, engine.frame_count));
                     engine.frame_count = 0;
                 }
-                let r = (main_func)(&mut engine);
+                let r = game.update(&mut engine);
                 if r.is_err() || r.as_ref().ok() == Some(&false) || force_exit {
                     if let Err(e) = r {
                         if cfg!(debug_assertions) {
@@ -263,7 +280,7 @@ pub struct Engine {
     /// Main title of the window, Window's full title will be "Title - fps"
     pub title: String,
     /// Size of the window, with (x-size,y-size,pixel-size)
-    pub size: (u32, u32, u32),
+    size: (u32, u32, u32),
 
     /* TIME */
     /// Time between current frame and last frame, usefull for movement's calculations
@@ -291,17 +308,10 @@ impl std::fmt::Debug for Engine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Engine")
             .field("title", &self.title)
-            .field("size", &self.size)
+            .field("size", &self.size())
+            .field("scale", &self.size.2)
             .field("elapsed", &self.elapsed)
-            .field("screen", &self.screen)
             .finish()
-    }
-}
-
-impl Drop for Engine {
-    fn drop(&mut self) {
-        let decal = self.textsheet_decal.clone_decal();
-        self.destroy_decal(&decal);
     }
 }
 
@@ -357,7 +367,7 @@ impl Engine {
         let screen = DrawingSprite::new(Sprite::new(size.0, size.1));
         let textsheet_decal =
             crate::decals::Decal::new(&mut handler, SmartDrawingTrait::get_textsheet(&screen));
-        
+
         Engine {
             /* FRONTEND */
             size,
@@ -396,6 +406,11 @@ impl Engine {
     /// Return the current Target size in pixel
     pub fn size(&self) -> Vu2d {
         self.screen.get_size()
+    }
+
+    /// Return the pixel scale factor
+    pub fn scale(&self) -> u32 {
+        self.size.2
     }
 
     /// Get The status of a key
@@ -488,14 +503,5 @@ impl Engine {
     /// Return the current input cursor position
     pub fn get_input_cursor(&self) -> usize {
         self.input_cursor
-    }
-
-    /// Tell the GPU to destroy everything related to that [`Decal`](crate::Decal)
-    /// it takes the decal by reference since it is not possible to pass by value.
-    /// trying to draw the decal afterwards will just not render anything, but may affect
-    /// performance if you try to draw lots of "zombie" decals
-    pub fn destroy_decal(&mut self, decal: &Decal) {
-        decal.0.destroy(&mut self.handler);
-        decal.1.set(false);
     }
 }

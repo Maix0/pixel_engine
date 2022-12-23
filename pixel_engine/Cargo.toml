@@ -11,18 +11,15 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
-
-
-
 [dependencies]
 pixel_engine_backend = "0.6.0"
-pixel_engine_draw    = "0.5.3"
+pixel_engine_draw = "0.5.3"
 futures = "0.3.25"
 instant = "0.1.12"
+once_cell = "1.16.0"
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
 web-sys = "0.3.60"
 wasm-bindgen-futures = "0.4.33"
 console_error_panic_hook = "0.1.7"
 wgpu = { version = "0.14.0", features = ["webgl"] }
-

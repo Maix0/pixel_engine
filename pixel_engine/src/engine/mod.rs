@@ -6,10 +6,12 @@ pub mod traits;
 
 /// A Gpu-located spite
 pub mod decals;
+mod game;
 /// User Input module
 pub mod inputs;
 mod logic;
 mod screen;
+pub use game::Game;
 pub use graphics::{Color, PixelMode, Sprite};
 
 pub use logic::{Engine, EngineWrapper};

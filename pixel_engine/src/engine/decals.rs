@@ -4,36 +4,39 @@ use px_backend::decals;
 use px_draw::graphics::Color;
 use px_draw::vector2::Vf2d;
 
+thread_local! {pub(crate) static DECAL_HANDLER: std::cell::RefCell<std::collections::VecDeque<decals::Decal>> = std::cell::RefCell::new(std::collections::VecDeque::with_capacity(16));}
+
 /// A sprite that lives on the GPU.
 /// To not get a (GPU) memory leak, you need to destroy the decal manually through the method
 /// `Engine::destroy_decal`
 pub struct Decal(
-    pub(crate) std::mem::ManuallyDrop<decals::Decal>,
-    pub(crate) std::cell::Cell<bool>, // is the decal still valid ?
+    pub(crate) decals::Decal,
+    std::marker::PhantomData<*const ()>,
 );
+
+impl Drop for Decal {
+    fn drop(&mut self) {
+        DECAL_HANDLER.with(|key| key.borrow_mut().push_back(self.0.clone()));
+    }
+}
 
 impl Decal {
     pub(crate) fn new(ctx: &mut px_backend::Context, spr: &px_draw::graphics::Sprite) -> Self {
         let (raw, _lock) = spr.get_read_lock();
         Decal(
-            std::mem::ManuallyDrop::new(ctx.create_decal((raw, (spr.width(), spr.height())))),
-            std::cell::Cell::new(true),
+            ctx.create_decal((raw, (spr.width(), spr.height()))),
+            std::marker::PhantomData,
         )
-    }
-
-    pub(crate) fn clone_decal(&self) -> Self {
-        Decal(self.0.clone(), self.1.clone())
     }
 
     /// Get the size of the decal in pixel
     #[must_use]
-    pub fn size(&self) -> (u32, u32) {
-        self.0.size
+    pub fn size(&self) -> px_draw::vector2::Vu2d {
+        self.0.size.into()
     }
 
-    /// return `true` if the decal hasn't been destroyed, `false` if it was
-    pub fn is_valid(&self) -> bool {
-        self.1.get()
+    pub(crate) fn clone_decal(&self) -> Self {
+        Self(self.0.clone(), std::marker::PhantomData)
     }
 }
 
@@ -333,25 +336,23 @@ impl DecalDraw for crate::Engine {
         decal: &Decal,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
-            let uv: [Vf2d; 4] = [uv[0].into(), uv[1].into(), uv[2].into(), uv[3].into()];
-            let mut di = px_backend::decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
-                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                w: [1.0; 4],
-                tint: tint.into(),
-            };
-            for i in 0..4 {
-                di.pos[i] = (
-                    (pos[i].x / (self.size.0) as f32) * 2.0 - 1.0,
-                    ((pos[i].y / (self.size.1) as f32) * 2.0 - 1.0) * -1.0,
-                );
-                di.uv[i] = (uv[i].x, uv[i].y);
-            }
-            self.handler.draw_decal_instance(di);
+        let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
+        let uv: [Vf2d; 4] = [uv[0].into(), uv[1].into(), uv[2].into(), uv[3].into()];
+        let mut di = px_backend::decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
+            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            w: [1.0; 4],
+            tint: tint.into(),
+        };
+        for i in 0..4 {
+            di.pos[i] = (
+                (pos[i].x / (self.size.0) as f32) * 2.0 - 1.0,
+                ((pos[i].y / (self.size.1) as f32) * 2.0 - 1.0) * -1.0,
+            );
+            di.uv[i] = (uv[i].x, uv[i].y);
         }
+        self.handler.draw_decal_instance(di);
     }
     fn draw_decal<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal) {
         self.draw_decal_tinted(pos, decal, Color::WHITE);
@@ -462,33 +463,31 @@ impl DecalDraw for crate::Engine {
 
     #[inline]
     fn draw_decal_tinted<P: Into<Vf2d> + Copy>(&mut self, pos: P, decal: &Decal, tint: Color) {
-        if decal.is_valid() {
-            into!(pos);
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            let topleft = normalize!(pos, screen_size);
-            let bottomright = normalize!(
-                {
-                    pos + Vf2d {
-                        x: decal.0.size.0 as f32,
-                        y: decal.0.size.1 as f32,
-                    }
-                },
-                screen_size
-            );
-            self.handler
-                .draw_decal_instance(px_backend::decals::DecalInstances {
-                    id: decal.0.id(),
-                    pos: [
-                        (topleft.x, topleft.y),         // A
-                        (topleft.x, bottomright.y),     // B
-                        (bottomright.x, bottomright.y), // C
-                        (bottomright.x, topleft.y),     // D
-                    ],
-                    uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                    w: [1.0; 4],
-                    tint: tint.into(),
-                });
-        }
+        into!(pos);
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let topleft = normalize!(pos, screen_size);
+        let bottomright = normalize!(
+            {
+                pos + Vf2d {
+                    x: decal.0.size.0 as f32,
+                    y: decal.0.size.1 as f32,
+                }
+            },
+            screen_size
+        );
+        self.handler
+            .draw_decal_instance(px_backend::decals::DecalInstances {
+                id: decal.0.id(),
+                pos: [
+                    (topleft.x, topleft.y),         // A
+                    (topleft.x, bottomright.y),     // B
+                    (bottomright.x, bottomright.y), // C
+                    (bottomright.x, topleft.y),     // D
+                ],
+                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+                w: [1.0; 4],
+                tint: tint.into(),
+            });
     }
 
     fn draw_decal_scaled_tinted<P: Into<Vf2d> + Copy>(
@@ -498,34 +497,32 @@ impl DecalDraw for crate::Engine {
         scale: P,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            into!(scale, pos);
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            let topleft = normalize!(pos, screen_size);
-            let bottomright = normalize!(
-                {
-                    pos + Vf2d {
-                        x: decal.0.size.0 as f32,
-                        y: decal.0.size.1 as f32,
-                    } * scale
-                },
-                screen_size
-            );
-            self.handler
-                .draw_decal_instance(px_backend::decals::DecalInstances {
-                    id: decal.0.id(),
-                    pos: [
-                        (topleft.x, topleft.y),         // A
-                        (topleft.x, bottomright.y),     // B
-                        (bottomright.x, bottomright.y), // C
-                        (bottomright.x, topleft.y),     // D
-                    ],
-                    uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                    w: [1.0; 4],
+        into!(scale, pos);
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let topleft = normalize!(pos, screen_size);
+        let bottomright = normalize!(
+            {
+                pos + Vf2d {
+                    x: decal.0.size.0 as f32,
+                    y: decal.0.size.1 as f32,
+                } * scale
+            },
+            screen_size
+        );
+        self.handler
+            .draw_decal_instance(px_backend::decals::DecalInstances {
+                id: decal.0.id(),
+                pos: [
+                    (topleft.x, topleft.y),         // A
+                    (topleft.x, bottomright.y),     // B
+                    (bottomright.x, bottomright.y), // C
+                    (bottomright.x, topleft.y),     // D
+                ],
+                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+                w: [1.0; 4],
 
-                    tint: tint.into(),
-                });
-        }
+                tint: tint.into(),
+            });
     }
 
     #[inline]
@@ -537,42 +534,40 @@ impl DecalDraw for crate::Engine {
         source_size: P,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            into!(pos, source_pos, source_size);
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            let topleft = normalize!(pos, screen_size);
-            let bottomright = normalize!(
-                {
-                    pos + Vf2d {
-                        x: source_size.x,
-                        y: source_size.x,
-                    }
-                },
-                screen_size
-            );
-            let mut uv = [(0f32, 0f32); 4];
-            let uv_scale: Vf2d = decal.0.uv_scale.into();
-            let uv_topleft = source_pos * uv_scale;
-            let uv_bottomright = uv_topleft + (source_size * uv_scale);
-            uv[0] = (uv_topleft.x, uv_topleft.y);
-            uv[1] = (uv_topleft.x, uv_bottomright.y);
-            uv[2] = (uv_bottomright.x, uv_bottomright.y);
-            uv[3] = (uv_bottomright.x, uv_topleft.y);
+        into!(pos, source_pos, source_size);
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let topleft = normalize!(pos, screen_size);
+        let bottomright = normalize!(
+            {
+                pos + Vf2d {
+                    x: source_size.x,
+                    y: source_size.x,
+                }
+            },
+            screen_size
+        );
+        let mut uv = [(0f32, 0f32); 4];
+        let uv_scale: Vf2d = decal.0.uv_scale.into();
+        let uv_topleft = source_pos * uv_scale;
+        let uv_bottomright = uv_topleft + (source_size * uv_scale);
+        uv[0] = (uv_topleft.x, uv_topleft.y);
+        uv[1] = (uv_topleft.x, uv_bottomright.y);
+        uv[2] = (uv_bottomright.x, uv_bottomright.y);
+        uv[3] = (uv_bottomright.x, uv_topleft.y);
 
-            self.handler
-                .draw_decal_instance(px_backend::decals::DecalInstances {
-                    id: decal.0.id(),
-                    pos: [
-                        (topleft.x, topleft.y),         // A
-                        (topleft.x, bottomright.y),     // B
-                        (bottomright.x, bottomright.y), // C
-                        (bottomright.x, topleft.y),     // D
-                    ],
-                    uv,
-                    w: [1.0; 4],
-                    tint: tint.into(),
-                });
-        }
+        self.handler
+            .draw_decal_instance(px_backend::decals::DecalInstances {
+                id: decal.0.id(),
+                pos: [
+                    (topleft.x, topleft.y),         // A
+                    (topleft.x, bottomright.y),     // B
+                    (bottomright.x, bottomright.y), // C
+                    (bottomright.x, topleft.y),     // D
+                ],
+                uv,
+                w: [1.0; 4],
+                tint: tint.into(),
+            });
     }
 
     #[inline]
@@ -585,42 +580,40 @@ impl DecalDraw for crate::Engine {
         scale: P,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            into!(pos, source_pos, source_size, scale);
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            let topleft = normalize!(pos, screen_size);
-            let bottomright = normalize!(
-                {
-                    pos + Vf2d {
-                        x: source_size.x,
-                        y: source_size.x,
-                    } * scale
-                },
-                screen_size
-            );
-            let mut uv = [(0f32, 0f32); 4];
-            let uv_scale: Vf2d = decal.0.uv_scale.into();
-            let uv_topleft = source_pos * uv_scale;
-            let uv_bottomright = uv_topleft + (source_size * uv_scale);
-            uv[0] = (uv_topleft.x, uv_topleft.y);
-            uv[1] = (uv_topleft.x, uv_bottomright.y);
-            uv[2] = (uv_bottomright.x, uv_bottomright.y);
-            uv[3] = (uv_bottomright.x, uv_topleft.y);
+        into!(pos, source_pos, source_size, scale);
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let topleft = normalize!(pos, screen_size);
+        let bottomright = normalize!(
+            {
+                pos + Vf2d {
+                    x: source_size.x,
+                    y: source_size.x,
+                } * scale
+            },
+            screen_size
+        );
+        let mut uv = [(0f32, 0f32); 4];
+        let uv_scale: Vf2d = decal.0.uv_scale.into();
+        let uv_topleft = source_pos * uv_scale;
+        let uv_bottomright = uv_topleft + (source_size * uv_scale);
+        uv[0] = (uv_topleft.x, uv_topleft.y);
+        uv[1] = (uv_topleft.x, uv_bottomright.y);
+        uv[2] = (uv_bottomright.x, uv_bottomright.y);
+        uv[3] = (uv_bottomright.x, uv_topleft.y);
 
-            self.handler
-                .draw_decal_instance(px_backend::decals::DecalInstances {
-                    id: decal.0.id(),
-                    pos: [
-                        (topleft.x, topleft.y),         // A
-                        (topleft.x, bottomright.y),     // B
-                        (bottomright.x, bottomright.y), // C
-                        (bottomright.x, topleft.y),     // D
-                    ],
-                    uv,
-                    w: [1.0; 4],
-                    tint: tint.into(),
-                });
-        }
+        self.handler
+            .draw_decal_instance(px_backend::decals::DecalInstances {
+                id: decal.0.id(),
+                pos: [
+                    (topleft.x, topleft.y),         // A
+                    (topleft.x, bottomright.y),     // B
+                    (bottomright.x, bottomright.y), // C
+                    (bottomright.x, topleft.y),     // D
+                ],
+                uv,
+                w: [1.0; 4],
+                tint: tint.into(),
+            });
     }
 
     #[inline]
@@ -630,62 +623,57 @@ impl DecalDraw for crate::Engine {
         decal: &Decal,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            const POINT_ONE: usize = 3;
-            const POINT_TWO: usize = 0;
-            const POINT_THREE: usize = 1;
-            const POINT_FOUR: usize = 2;
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
-            let pos: [Vf2d; 4] = [
-                normalize!({ pos[0] }, screen_size),
-                normalize!({ pos[1] }, screen_size),
-                normalize!({ pos[2] }, screen_size),
-                normalize!({ pos[3] }, screen_size),
-            ];
-            let mut center: Vf2d = (0.0, 0.0).into();
-            let mut di = px_backend::decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
-                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                w: [1.0; 4],
-                tint: tint.into(),
+        const POINT_ONE: usize = 3;
+        const POINT_TWO: usize = 0;
+        const POINT_THREE: usize = 1;
+        const POINT_FOUR: usize = 2;
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
+        let pos: [Vf2d; 4] = [
+            normalize!({ pos[0] }, screen_size),
+            normalize!({ pos[1] }, screen_size),
+            normalize!({ pos[2] }, screen_size),
+            normalize!({ pos[3] }, screen_size),
+        ];
+        let mut center: Vf2d = (0.0, 0.0).into();
+        let mut di = px_backend::decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
+            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            w: [1.0; 4],
+            tint: tint.into(),
+        };
+        let rd = (pos[POINT_THREE].x - pos[POINT_ONE].x) * (pos[POINT_FOUR].y - pos[POINT_TWO].y)
+            - (pos[POINT_FOUR].x - pos[POINT_TWO].x) * (pos[POINT_THREE].y - pos[POINT_ONE].y);
+        if rd != 0.0 {
+            let rd = 1.0 / rd;
+            let rn = ((pos[POINT_FOUR].x - pos[POINT_TWO].x)
+                * (pos[POINT_ONE].y - pos[POINT_TWO].y)
+                - (pos[POINT_FOUR].y - pos[POINT_TWO].y) * (pos[POINT_ONE].x - pos[POINT_TWO].x))
+                * rd;
+            let sn = ((pos[POINT_THREE].x - pos[POINT_ONE].x)
+                * (pos[POINT_ONE].y - pos[POINT_TWO].y)
+                - (pos[POINT_THREE].y - pos[POINT_ONE].y) * (pos[POINT_ONE].x - pos[POINT_TWO].x))
+                * rd;
+            if !(!(0.0..=1.0).contains(&rn) || !(0.0..=1.0).contains(&sn)) {
+                center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
             };
-            let rd = (pos[POINT_THREE].x - pos[POINT_ONE].x)
-                * (pos[POINT_FOUR].y - pos[POINT_TWO].y)
-                - (pos[POINT_FOUR].x - pos[POINT_TWO].x) * (pos[POINT_THREE].y - pos[POINT_ONE].y);
-            if rd != 0.0 {
-                let rd = 1.0 / rd;
-                let rn = ((pos[POINT_FOUR].x - pos[POINT_TWO].x)
-                    * (pos[POINT_ONE].y - pos[POINT_TWO].y)
-                    - (pos[POINT_FOUR].y - pos[POINT_TWO].y)
-                        * (pos[POINT_ONE].x - pos[POINT_TWO].x))
-                    * rd;
-                let sn = ((pos[POINT_THREE].x - pos[POINT_ONE].x)
-                    * (pos[POINT_ONE].y - pos[POINT_TWO].y)
-                    - (pos[POINT_THREE].y - pos[POINT_ONE].y)
-                        * (pos[POINT_ONE].x - pos[POINT_TWO].x))
-                    * rd;
-                if !(!(0.0..=1.0).contains(&rn) || !(0.0..=1.0).contains(&sn)) {
-                    center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
-                };
-                let mut d = [0.0; 4];
-                for i in 0..4 {
-                    d[i] = (pos[i] - center).mag();
-                }
-                for i in 0..4 {
-                    let q = if d[i] == 0.0 {
-                        1.0
-                    } else {
-                        (d[i] + d[(i + 2) & 3]) / d[(i + 2) & 3]
-                    };
-                    di.uv[i].0 *= q;
-                    di.uv[i].1 *= q;
-                    di.w[i] *= q;
-                    di.pos[i] = (pos[i].x, pos[i].y);
-                }
-                self.handler.draw_decal_instance(di);
+            let mut d = [0.0; 4];
+            for i in 0..4 {
+                d[i] = (pos[i] - center).mag();
             }
+            for i in 0..4 {
+                let q = if d[i] == 0.0 {
+                    1.0
+                } else {
+                    (d[i] + d[(i + 2) & 3]) / d[(i + 2) & 3]
+                };
+                di.uv[i].0 *= q;
+                di.uv[i].1 *= q;
+                di.w[i] *= q;
+                di.pos[i] = (pos[i].x, pos[i].y);
+            }
+            self.handler.draw_decal_instance(di);
         }
     }
 
@@ -698,71 +686,66 @@ impl DecalDraw for crate::Engine {
         decal: &Decal,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            const POINT_ONE: usize = 3;
-            const POINT_TWO: usize = 0;
-            const POINT_THREE: usize = 1;
-            const POINT_FOUR: usize = 2;
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            into!(source_pos, source_size);
-            let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
-            let pos: [Vf2d; 4] = [
-                normalize!({ pos[0] }, screen_size),
-                normalize!({ pos[1] }, screen_size),
-                normalize!({ pos[2] }, screen_size),
-                normalize!({ pos[3] }, screen_size),
-            ];
-            let mut center: Vf2d = (0.0, 0.0).into();
-            let mut di = px_backend::decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
-                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                w: [1.0; 4],
-                tint: tint.into(),
-            };
-            let rd = (pos[POINT_THREE].x - pos[POINT_ONE].x)
-                * (pos[POINT_FOUR].y - pos[POINT_TWO].y)
-                - (pos[POINT_FOUR].x - pos[POINT_TWO].x) * (pos[POINT_THREE].y - pos[POINT_ONE].y);
-            if rd != 0.0 {
-                let uv_scale: Vf2d = decal.0.uv_scale.into();
-                let uv_topleft = source_pos * uv_scale;
-                let uv_bottomright = uv_topleft + (source_size * uv_scale);
-                di.uv[0] = (uv_topleft.x, uv_topleft.y);
-                di.uv[1] = (uv_topleft.x, uv_bottomright.y);
-                di.uv[2] = (uv_bottomright.x, uv_bottomright.y);
-                di.uv[3] = (uv_bottomright.x, uv_topleft.y);
+        const POINT_ONE: usize = 3;
+        const POINT_TWO: usize = 0;
+        const POINT_THREE: usize = 1;
+        const POINT_FOUR: usize = 2;
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        into!(source_pos, source_size);
+        let pos: [Vf2d; 4] = [pos[0].into(), pos[1].into(), pos[2].into(), pos[3].into()];
+        let pos: [Vf2d; 4] = [
+            normalize!({ pos[0] }, screen_size),
+            normalize!({ pos[1] }, screen_size),
+            normalize!({ pos[2] }, screen_size),
+            normalize!({ pos[3] }, screen_size),
+        ];
+        let mut center: Vf2d = (0.0, 0.0).into();
+        let mut di = px_backend::decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
+            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            w: [1.0; 4],
+            tint: tint.into(),
+        };
+        let rd = (pos[POINT_THREE].x - pos[POINT_ONE].x) * (pos[POINT_FOUR].y - pos[POINT_TWO].y)
+            - (pos[POINT_FOUR].x - pos[POINT_TWO].x) * (pos[POINT_THREE].y - pos[POINT_ONE].y);
+        if rd != 0.0 {
+            let uv_scale: Vf2d = decal.0.uv_scale.into();
+            let uv_topleft = source_pos * uv_scale;
+            let uv_bottomright = uv_topleft + (source_size * uv_scale);
+            di.uv[0] = (uv_topleft.x, uv_topleft.y);
+            di.uv[1] = (uv_topleft.x, uv_bottomright.y);
+            di.uv[2] = (uv_bottomright.x, uv_bottomright.y);
+            di.uv[3] = (uv_bottomright.x, uv_topleft.y);
 
-                let rd = 1.0 / rd;
-                let rn = ((pos[POINT_FOUR].x - pos[POINT_TWO].x)
-                    * (pos[POINT_ONE].y - pos[POINT_TWO].y)
-                    - (pos[POINT_FOUR].y - pos[POINT_TWO].y)
-                        * (pos[POINT_ONE].x - pos[POINT_TWO].x))
-                    * rd;
-                let sn = ((pos[POINT_THREE].x - pos[POINT_ONE].x)
-                    * (pos[POINT_ONE].y - pos[POINT_TWO].y)
-                    - (pos[POINT_THREE].y - pos[POINT_ONE].y)
-                        * (pos[POINT_ONE].x - pos[POINT_TWO].x))
-                    * rd;
-                if !(!(0.0..=1.0).contains(&rn) || !(0.0..=1.0).contains(&sn)) {
-                    center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
-                };
-                let mut d = [0.0; 4];
-                for i in 0..4 {
-                    d[i] = (pos[i] - center).mag();
-                }
-                for i in 0..4 {
-                    let q = if d[i] == 0.0 {
-                        1.0
-                    } else {
-                        (d[i] + d[(i + 2) & 3]) / d[(i + 2) & 3]
-                    };
-                    di.uv[i].0 *= q;
-                    di.uv[i].1 *= q;
-                    di.w[i] *= q;
-                    di.pos[i] = (pos[i].x, pos[i].y);
-                }
-                self.handler.draw_decal_instance(di);
+            let rd = 1.0 / rd;
+            let rn = ((pos[POINT_FOUR].x - pos[POINT_TWO].x)
+                * (pos[POINT_ONE].y - pos[POINT_TWO].y)
+                - (pos[POINT_FOUR].y - pos[POINT_TWO].y) * (pos[POINT_ONE].x - pos[POINT_TWO].x))
+                * rd;
+            let sn = ((pos[POINT_THREE].x - pos[POINT_ONE].x)
+                * (pos[POINT_ONE].y - pos[POINT_TWO].y)
+                - (pos[POINT_THREE].y - pos[POINT_ONE].y) * (pos[POINT_ONE].x - pos[POINT_TWO].x))
+                * rd;
+            if !(!(0.0..=1.0).contains(&rn) || !(0.0..=1.0).contains(&sn)) {
+                center = pos[POINT_ONE] + (pos[POINT_THREE] - pos[POINT_ONE]) * rn;
+            };
+            let mut d = [0.0; 4];
+            for i in 0..4 {
+                d[i] = (pos[i] - center).mag();
             }
+            for i in 0..4 {
+                let q = if d[i] == 0.0 {
+                    1.0
+                } else {
+                    (d[i] + d[(i + 2) & 3]) / d[(i + 2) & 3]
+                };
+                di.uv[i].0 *= q;
+                di.uv[i].1 *= q;
+                di.w[i] *= q;
+                di.pos[i] = (pos[i].x, pos[i].y);
+            }
+            self.handler.draw_decal_instance(di);
         }
     }
 
@@ -775,52 +758,50 @@ impl DecalDraw for crate::Engine {
         angle: f32,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            into!(pos, center);
-            let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
-            pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
-            pos_arr[1] = Vf2d {x: 0.0, y:  decal.size().1 as f32} - center /* * scale*/;
-            pos_arr[2] = Vf2d {x:decal.size().0 as f32, y:decal.size().1 as f32} - center/*  * scale*/;
-            pos_arr[3] = Vf2d {x:decal.size().0 as f32, y: 0.0} - center /* * scale*/;
-            let (s, c) = angle.sin_cos();
-            for pos_index in &mut pos_arr {
-                *pos_index = normalize!(
-                    {
-                        pos + Vf2d {
-                            x: pos_index.x * c - pos_index.y * s,
-                            y: pos_index.x * s + pos_index.y * c,
-                        }
-                    },
-                    screen_size
-                );
-                // *pos_index = pos
-                //     + Vf2d {
-                //         x: pos_index.x * c - pos_index.y * s,
-                //         y: pos_index.x * s + pos_index.y * c,
-                //     };
-                // *pos_index = *pos_index * screen_size * 2.0 - Vf2d { x: 1.0, y: 1.0 };
-                // pos_index.y *= -1.0;
-                /*
-                di.pos[i] = pos + olc::vf2d(di.pos[i].x * c - di.pos[i].y * s, di.pos[i].x * s + di.pos[i].y * c);
-                di.pos[i] = di.pos[i] * vInvScreenSize * 2.0f - olc::vf2d(1.0f, 1.0f);
-                di.pos[i].y *= -1.0f;
-                di.w[i] = 1;
-                */
-            }
-            self.handler.draw_decal_instance(decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [
-                    (pos_arr[0].x, pos_arr[0].y),
-                    (pos_arr[1].x, pos_arr[1].y),
-                    (pos_arr[2].x, pos_arr[2].y),
-                    (pos_arr[3].x, pos_arr[3].y),
-                ],
-                w: [1.0; 4],
-                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                tint: tint.into(),
-            });
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        into!(pos, center);
+        let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
+        pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
+        pos_arr[1] = Vf2d {x: 0.0, y:  decal.size().y as f32} - center /* * scale*/;
+        pos_arr[2] = Vf2d {x:decal.size().x as f32, y:decal.size().y as f32} - center/*  * scale*/;
+        pos_arr[3] = Vf2d {x:decal.size().x as f32, y: 0.0} - center /* * scale*/;
+        let (s, c) = angle.sin_cos();
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
+                {
+                    pos + Vf2d {
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
+                    }
+                },
+                screen_size
+            );
+            // *pos_index = pos
+            //     + Vf2d {
+            //         x: pos_index.x * c - pos_index.y * s,
+            //         y: pos_index.x * s + pos_index.y * c,
+            //     };
+            // *pos_index = *pos_index * screen_size * 2.0 - Vf2d { x: 1.0, y: 1.0 };
+            // pos_index.y *= -1.0;
+            /*
+            di.pos[i] = pos + olc::vf2d(di.pos[i].x * c - di.pos[i].y * s, di.pos[i].x * s + di.pos[i].y * c);
+            di.pos[i] = di.pos[i] * vInvScreenSize * 2.0f - olc::vf2d(1.0f, 1.0f);
+            di.pos[i].y *= -1.0f;
+            di.w[i] = 1;
+            */
         }
+        self.handler.draw_decal_instance(decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [
+                (pos_arr[0].x, pos_arr[0].y),
+                (pos_arr[1].x, pos_arr[1].y),
+                (pos_arr[2].x, pos_arr[2].y),
+                (pos_arr[3].x, pos_arr[3].y),
+            ],
+            w: [1.0; 4],
+            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            tint: tint.into(),
+        });
     }
 
     #[inline]
@@ -833,42 +814,40 @@ impl DecalDraw for crate::Engine {
         scale: P,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
-            into!(pos, center, scale);
-            let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
-            pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
-            pos_arr[1] = Vf2d {x: 0.0, y:  decal.size().1 as f32} - center /* * scale*/;
-            pos_arr[2] = Vf2d {x:decal.size().0 as f32, y:decal.size().1 as f32} - center/*  * scale*/;
-            pos_arr[3] = Vf2d {x:decal.size().0 as f32, y: 0.0} - center /* * scale*/;
-            for p in &mut pos_arr {
-                *p = *p * scale;
-            }
-            let (c, s) = angle.sin_cos();
-            for pos_index in &mut pos_arr {
-                *pos_index = normalize!(
-                    {
-                        pos + Vf2d {
-                            x: pos_index.x * c - pos_index.y * s,
-                            y: pos_index.x * s + pos_index.y * c,
-                        }
-                    },
-                    screen_size
-                );
-            }
-            self.handler.draw_decal_instance(decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [
-                    (pos_arr[0].x, pos_arr[0].y),
-                    (pos_arr[1].x, pos_arr[1].y),
-                    (pos_arr[2].x, pos_arr[2].y),
-                    (pos_arr[3].x, pos_arr[3].y),
-                ],
-                w: [1.0; 4],
-                uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
-                tint: tint.into(),
-            });
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        into!(pos, center, scale);
+        let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
+        pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
+        pos_arr[1] = Vf2d {x: 0.0, y:  decal.size().y as f32} - center /* * scale*/;
+        pos_arr[2] = Vf2d {x:decal.size().x as f32, y:decal.size().y as f32} - center/*  * scale*/;
+        pos_arr[3] = Vf2d {x:decal.size().x as f32, y: 0.0} - center /* * scale*/;
+        for p in &mut pos_arr {
+            *p = *p * scale;
         }
+        let (c, s) = angle.sin_cos();
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
+                {
+                    pos + Vf2d {
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
+                    }
+                },
+                screen_size
+            );
+        }
+        self.handler.draw_decal_instance(decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [
+                (pos_arr[0].x, pos_arr[0].y),
+                (pos_arr[1].x, pos_arr[1].y),
+                (pos_arr[2].x, pos_arr[2].y),
+                (pos_arr[3].x, pos_arr[3].y),
+            ],
+            w: [1.0; 4],
+            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            tint: tint.into(),
+        });
     }
 
     #[inline]
@@ -882,49 +861,47 @@ impl DecalDraw for crate::Engine {
         source_size: P,
         tint: Color,
     ) {
-        if decal.is_valid() {
-            let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
+        let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
 
-            let uv_scale: Vf2d = decal.0.uv_scale.into();
-            into!(pos, center, source_pos, source_size);
-            let uv_topleft = source_pos * uv_scale;
-            let uv_bottomright = uv_topleft + (source_size * uv_scale);
-            let mut uv = [(0f32, 0f32); 4];
-            uv[0] = (uv_topleft.x, uv_topleft.y);
-            uv[1] = (uv_topleft.x, uv_bottomright.y);
-            uv[2] = (uv_bottomright.x, uv_bottomright.y);
-            uv[3] = (uv_bottomright.x, uv_topleft.y);
-            let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
-            pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
-            pos_arr[1] = Vf2d {x: 0.0, y:  source_size.y} - center /* * scale*/;
-            pos_arr[2] = Vf2d {x:source_size.x, y: source_size.y } - center/*  * scale*/;
-            pos_arr[3] = Vf2d {x:source_size.x, y: 0.0} - center /* * scale*/;
-            let (c, s) = angle.sin_cos();
-            for pos_index in &mut pos_arr {
-                *pos_index = normalize!(
-                    {
-                        pos + Vf2d {
-                            x: pos_index.x * c - pos_index.y * s,
-                            y: pos_index.x * s + pos_index.y * c,
-                        }
-                    },
-                    screen_size
-                );
-            }
-
-            self.handler.draw_decal_instance(decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [
-                    (pos_arr[0].x, pos_arr[0].y),
-                    (pos_arr[1].x, pos_arr[1].y),
-                    (pos_arr[2].x, pos_arr[2].y),
-                    (pos_arr[3].x, pos_arr[3].y),
-                ],
-                uv,
-                w: [1.0; 4],
-                tint: tint.into(),
-            });
+        let uv_scale: Vf2d = decal.0.uv_scale.into();
+        into!(pos, center, source_pos, source_size);
+        let uv_topleft = source_pos * uv_scale;
+        let uv_bottomright = uv_topleft + (source_size * uv_scale);
+        let mut uv = [(0f32, 0f32); 4];
+        uv[0] = (uv_topleft.x, uv_topleft.y);
+        uv[1] = (uv_topleft.x, uv_bottomright.y);
+        uv[2] = (uv_bottomright.x, uv_bottomright.y);
+        uv[3] = (uv_bottomright.x, uv_topleft.y);
+        let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
+        pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
+        pos_arr[1] = Vf2d {x: 0.0, y:  source_size.y} - center /* * scale*/;
+        pos_arr[2] = Vf2d {x:source_size.x, y: source_size.y } - center/*  * scale*/;
+        pos_arr[3] = Vf2d {x:source_size.x, y: 0.0} - center /* * scale*/;
+        let (c, s) = angle.sin_cos();
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
+                {
+                    pos + Vf2d {
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
+                    }
+                },
+                screen_size
+            );
         }
+
+        self.handler.draw_decal_instance(decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [
+                (pos_arr[0].x, pos_arr[0].y),
+                (pos_arr[1].x, pos_arr[1].y),
+                (pos_arr[2].x, pos_arr[2].y),
+                (pos_arr[3].x, pos_arr[3].y),
+            ],
+            uv,
+            w: [1.0; 4],
+            tint: tint.into(),
+        });
     }
 
     #[inline]
@@ -939,7 +916,6 @@ impl DecalDraw for crate::Engine {
         scaled: P,
         tint: Color,
     ) {
-        if decal.is_valid() {
             into!(pos, center, source_pos, source_size, scaled);
             let screen_size: Vf2d = (self.size.0 as f32, self.size.1 as f32).into();
             let uv_scale: Vf2d = decal.0.uv_scale.into();
@@ -983,7 +959,6 @@ impl DecalDraw for crate::Engine {
                 tint: tint.into(),
             });
         }
-    }
 }
 
 /// A trait that allows the rendering of text as decals

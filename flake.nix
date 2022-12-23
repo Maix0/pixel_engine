@@ -4,12 +4,14 @@
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
   inputs.cargo-workspace.url = "github:Maix0/cargo-ws-flake";
+  inputs.cargo-semver-checks.url = "github:Maix0/cargo-semver-checks-flake";
   outputs = {
     self,
     nixpkgs,
     flake-utils,
     rust-overlay,
     cargo-workspace,
+    cargo-semver-checks,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {
@@ -26,6 +28,7 @@
           buildToolsVersions = ["30.0.3"];
         };
         cargo-ws = cargo-workspace.defaultPackage.${system}; #.packages.${system}.default;
+        cargo-sc = cargo-semver-checks.packages.${system}.default;
       in
         mkShell {
           nativeBuildInputs = [
@@ -47,7 +50,8 @@
             wasm-bindgen-cli
             # android
             androidComposition.androidsdk
-
+            cargo-sc
+            #cargo-semver-checks
             cargo-ws
             freetype
             mold
