@@ -21,7 +21,7 @@ This provide the Engine struct
 # How to use
 
 There are plenty of examples in the `examples` folder.
-You only need to run `cargo run --bin=<NAME>`, or go to (https://maix.me)[https://maix.me/] to get a list of example code.
+You only need to run `cargo run --bin=<NAME>`, or go to [https://maix.me](https://maix.me/) to get a list of example code.
 
 ```rust
 extern crate pixel_engine as px;
