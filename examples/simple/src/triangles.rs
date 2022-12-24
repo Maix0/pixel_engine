@@ -41,13 +41,13 @@ async fn init() {
         if game.get_key(Up).any() && selected_pts.1 > 8 * text_scale * 3 {
             (*selected_pts).1 -= 1;
         }
-        if game.get_key(Down).any() && selected_pts.1 < game.size.1 as i32 - 1 {
+        if game.get_key(Down).any() && selected_pts.1 < game.size().y as i32 - 1 {
             (*selected_pts).1 += 1;
         }
         if game.get_key(Left).any() && selected_pts.0 > 0 {
             (*selected_pts).0 -= 1;
         }
-        if game.get_key(Right).any() && selected_pts.0 < game.size.0 as i32 - 1 {
+        if game.get_key(Right).any() && selected_pts.0 < game.size().x as i32 - 1 {
             (*selected_pts).0 += 1;
         }
         if game.get_key(Space).pressed {
@@ -104,7 +104,7 @@ async fn init() {
             ),
         );
         game.draw_text(
-            (game.size.0 as i32 - 5 * 8 * text_scale, 0),
+            (game.size().x as i32 - 5 * 8 * text_scale, 0),
             text_scale as u32,
             [255, 255, 255].into(),
             "fill",
@@ -112,8 +112,8 @@ async fn init() {
         game.draw_text(
             (
                 match fill {
-                    true => game.size.0 as i32 - "Y".len() as i32 * 8 * text_scale,
-                    false => game.size.0 as i32 - "X".len() as i32 * 8 * text_scale,
+                    true => game.size().x as i32 - "Y".len() as i32 * 8 * text_scale,
+                    false => game.size().x as i32 - "X".len() as i32 * 8 * text_scale,
                 },
                 0,
             ),
@@ -129,7 +129,7 @@ async fn init() {
         );
         game.draw_line(
             (0, text_scale as i32 * 3 * 8),
-            (game.size.0 as i32, text_scale * 3 * 8),
+            (game.size().x as i32, text_scale * 3 * 8),
             [255, 255, 255].into(),
         );
         Ok(true)

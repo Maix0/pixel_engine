@@ -92,9 +92,9 @@ async fn init() {
             world.1 + (world_a + fov_half).sin() * near,
         );
 
-        //for y in 0..=((game.size.1 as f32 * 0.9) as _) {
-        for y in 0..game.size.1 {
-            let sample_depth = y as f64 / (game.size.1 as f64 / 2.0);
+        //for y in 0..=((game.size().y as f32 * 0.9) as _) {
+        for y in 0..game.size().y {
+            let sample_depth = y as f64 / (game.size().y as f64 / 2.0);
 
             let start = (
                 (far1.0 - near1.0) / (sample_depth) + near1.0,
@@ -105,8 +105,8 @@ async fn init() {
                 (far2.1 - near2.1) / (sample_depth) + near2.1,
             );
 
-            for x in 0..game.size.0 {
-                let sample_width = x as f64 / game.size.0 as f64;
+            for x in 0..game.size().x {
+                let sample_width = x as f64 / game.size().x as f64;
                 let sample = (
                     ((end.0 - start.0) * sample_width + start.0) - 1.0,
                     ((end.1 - start.1) * sample_width + start.1) - 1.0,
@@ -194,21 +194,21 @@ async fn init() {
         /*
         game.screen.fill_rect(
             0,
-            (game.size.1 as f32 * 0.9) as u32 + 1,
+            (game.size().y as f32 * 0.9) as u32 + 1,
             9 * 8,
             18,
             engine::Color::BLACK,
         );
         game.screen.draw_text(
             0,
-            (game.size.1 as f32 * 0.9) as _,
+            (game.size().y as f32 * 0.9) as _,
             1,
             engine::Color::WHITE,
             &format!("x: {:>4.2}", world.0),
         );
         game.screen.draw_text(
             0,
-            (game.size.1 as f32 * 0.9) as u32 + 8,
+            (game.size().y as f32 * 0.9) as u32 + 8,
             1,
             engine::Color::WHITE,
             &format!("y: {:4>.2}", world.1),

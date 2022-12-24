@@ -92,9 +92,9 @@ async fn init() {
 
         sub_draw_type = sub_draw_type.clamp(1, sub_draw_max);
 
-        game.clear([0.5, 0.5, 0.5].into());
-        for y in (0..game.size.1).step_by(3) {
-            for x in (0..game.size.0).step_by(3) {
+        game.clear([0.5f32, 0.5, 0.5].into());
+        for y in (0..game.size().y).step_by(3) {
+            for x in (0..game.size().x).step_by(3) {
                 game.draw((x as i32, y as i32), Color::BLACK);
                 game.draw((x as i32 + 1, y as i32), Color::YELLOW);
                 game.draw((x as i32 + 2, y as i32), Color::VERY_DARK_CYAN);
@@ -157,24 +157,24 @@ async fn init() {
                 1 => game.draw_warped_decal(
                     [
                         (10.0, 10.0),
-                        (10.0 - warp, 10.0 + decal.size().1 as f32),
+                        (10.0 - warp, 10.0 + decal.size().y as f32),
                         (
-                            10.0 + decal.size().0 as f32 + warp,
-                            10.0 + decal.size().0 as f32,
+                            10.0 + decal.size().x as f32 + warp,
+                            10.0 + decal.size().x as f32,
                         ),
-                        (10.0 + decal.size().0 as f32, 10.0),
+                        (10.0 + decal.size().x as f32, 10.0),
                     ],
                     &decal,
                 ),
                 2 => game.draw_warped_partial_decal(
                     [
                         (10.0, 10.0),
-                        (10.0 - warp, 10.0 + decal.size().1 as f32),
+                        (10.0 - warp, 10.0 + decal.size().y as f32),
                         (
-                            10.0 + decal.size().0 as f32 + warp,
-                            10.0 + decal.size().0 as f32,
+                            10.0 + decal.size().x as f32 + warp,
+                            10.0 + decal.size().x as f32,
                         ),
-                        (10.0 + decal.size().0 as f32, 10.0),
+                        (10.0 + decal.size().x as f32, 10.0),
                     ],
                     (1.0, 1.0),
                     (3.0, 3.0),
@@ -212,7 +212,7 @@ async fn init() {
             },
             5 => {
                 game.draw_decal((10.0, 10.0), &decal);
-                game.draw_decal((10.0 + decal.size().0 as f32, 10.0), &decal);
+                game.draw_decal((10.0 + decal.size().x as f32, 10.0), &decal);
             }
             6 => game.draw_decal_tinted((10.0, 10.0), &decal, Color::YELLOW),
             _ => {}

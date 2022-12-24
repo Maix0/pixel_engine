@@ -26,9 +26,9 @@ pub fn subsprite() {
     launch(async move {
         let engine = EngineWrapper::new("SubSprite".into(), (50, 50, 15)).await;
         let spr_clone = spr.clone();
-        engine.run(move |game| {
-            for y in (0..game.size.1).step_by(3) {
-                for x in (0..game.size.0).step_by(3) {
+        engine.run(move |game: &mut Engine| {
+            for y in (0..game.size().y).step_by(3) {
+                for x in (0..game.size().x).step_by(3) {
                     game.draw((x as i32, y as i32), Color::MAGENTA);
                     game.draw((x as i32 + 1, y as i32), Color::GREEN);
                     game.draw((x as i32 + 2, y as i32), Color::VERY_DARK_CYAN);

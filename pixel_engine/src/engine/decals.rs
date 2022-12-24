@@ -916,49 +916,49 @@ impl DecalDraw for crate::Engine {
         scaled: P,
         tint: Color,
     ) {
-            into!(pos, center, source_pos, source_size, scaled);
-            let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
-            let uv_scale: Vf2d = decal.0.uv_scale.into();
-            let uv_topleft = source_pos * uv_scale;
-            let uv_bottomright = uv_topleft + (source_size * uv_scale);
-            let mut uv = [(0f32, 0f32); 4];
-            uv[0] = (uv_topleft.x, uv_topleft.y);
-            uv[1] = (uv_topleft.x, uv_bottomright.y);
-            uv[2] = (uv_bottomright.x, uv_bottomright.y);
-            uv[3] = (uv_bottomright.x, uv_topleft.y);
-            let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
-            pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
-            pos_arr[1] = Vf2d {x: 0.0, y:  source_size.y} - center /* * scale*/;
-            pos_arr[2] = Vf2d {x:source_size.x, y: source_size.y } - center/*  * scale*/;
-            pos_arr[3] = Vf2d {x:source_size.x, y: 0.0} - center /* * scale*/;
-            for p in &mut pos_arr {
-                *p = *p * scaled;
-            }
-            let (c, s) = angle.sin_cos();
-            for pos_index in &mut pos_arr {
-                *pos_index = normalize!(
-                    {
-                        pos + Vf2d {
-                            x: pos_index.x * c - pos_index.y * s,
-                            y: pos_index.x * s + pos_index.y * c,
-                        }
-                    },
-                    screen_size
-                );
-            }
-            self.handler.draw_decal_instance(decals::DecalInstances {
-                id: decal.0.id(),
-                pos: [
-                    (pos_arr[0].x, pos_arr[0].y),
-                    (pos_arr[1].x, pos_arr[1].y),
-                    (pos_arr[2].x, pos_arr[2].y),
-                    (pos_arr[3].x, pos_arr[3].y),
-                ],
-                w: [1.0; 4],
-                uv,
-                tint: tint.into(),
-            });
+        into!(pos, center, source_pos, source_size, scaled);
+        let screen_size: Vf2d = (self.size().x as f32, self.size().y as f32).into();
+        let uv_scale: Vf2d = decal.0.uv_scale.into();
+        let uv_topleft = source_pos * uv_scale;
+        let uv_bottomright = uv_topleft + (source_size * uv_scale);
+        let mut uv = [(0f32, 0f32); 4];
+        uv[0] = (uv_topleft.x, uv_topleft.y);
+        uv[1] = (uv_topleft.x, uv_bottomright.y);
+        uv[2] = (uv_bottomright.x, uv_bottomright.y);
+        uv[3] = (uv_bottomright.x, uv_topleft.y);
+        let mut pos_arr = [Vf2d { x: 0.0, y: 0.0 }; 4];
+        pos_arr[0] = Vf2d {x:0.0,y:0.0} - center /* * scale*/;
+        pos_arr[1] = Vf2d {x: 0.0, y:  source_size.y} - center /* * scale*/;
+        pos_arr[2] = Vf2d {x:source_size.x, y: source_size.y } - center/*  * scale*/;
+        pos_arr[3] = Vf2d {x:source_size.x, y: 0.0} - center /* * scale*/;
+        for p in &mut pos_arr {
+            *p = *p * scaled;
         }
+        let (c, s) = angle.sin_cos();
+        for pos_index in &mut pos_arr {
+            *pos_index = normalize!(
+                {
+                    pos + Vf2d {
+                        x: pos_index.x * c - pos_index.y * s,
+                        y: pos_index.x * s + pos_index.y * c,
+                    }
+                },
+                screen_size
+            );
+        }
+        self.handler.draw_decal_instance(decals::DecalInstances {
+            id: decal.0.id(),
+            pos: [
+                (pos_arr[0].x, pos_arr[0].y),
+                (pos_arr[1].x, pos_arr[1].y),
+                (pos_arr[2].x, pos_arr[2].y),
+                (pos_arr[3].x, pos_arr[3].y),
+            ],
+            w: [1.0; 4],
+            uv,
+            tint: tint.into(),
+        });
+    }
 }
 
 /// A trait that allows the rendering of text as decals

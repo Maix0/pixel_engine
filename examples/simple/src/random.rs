@@ -16,8 +16,8 @@ async fn init() {
         if game.get_key(Escape).any() {
             return Ok(false);
         }
-        for x in 0..game.size.0 {
-            for y in 0..game.size.1 {
+        for x in 0..game.size().x {
+            for y in 0..game.size().y {
                 game.draw(
                     (x as i32, y as i32),
                     px::Color::new(rng.gen(), rng.gen(), rng.gen()),

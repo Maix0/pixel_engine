@@ -15,7 +15,7 @@ async fn init() {
 
     let mut transform = world_transform::Transform::new(&game, (1f32, 1f32).into());
 
-    game.run(move |game| {
+    game.run(move |game: &mut px::Engine| {
         game.clear(px::Color::BLACK);
         transform.handle_pan(
             game,

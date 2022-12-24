@@ -52,7 +52,7 @@ async fn init() {
         [0xEF, 0xEF, 0xC7].into(),
         [0xFF, 0xFF, 0xFF].into(),
     ];
-    let mut firepixel = vec![0x00usize; (game.size.0 * game.size.1) as usize];
+    let mut firepixel = vec![0x00usize; (game.size().x * game.size().y) as usize];
     fn spread_fire(src: usize, firepixel: &mut Vec<usize>) {
         let pixel = firepixel[src];
         if pixel == 0 {
@@ -74,8 +74,8 @@ async fn init() {
             }
         }
     }
-    for i in 0..game.size.0 {
-        firepixel[((game.size.1 - 1) * game.size.0 + i) as usize] = 36;
+    for i in 0..game.size().x {
+        firepixel[((game.size().y - 1) * game.size().x + i) as usize] = 36;
     }
     game.run(move |game: &mut px::Engine| {
         if game.get_key(px::inputs::Keycodes::Escape).any() {
@@ -92,9 +92,9 @@ async fn init() {
             }
         }
         /*
-        if firepixel[(game.size.1 * game.size.0) as usize - 1] != 0 && !bottomline {
-            for i in 0..game.size.0 {
-                firepixel[((game.size.1 - 1) * game.size.0 + i) as usize] -= 1;
+        if firepixel[(game.size().y * game.size().x) as usize - 1] != 0 && !bottomline {
+            for i in 0..game.size().x {
+                firepixel[((game.size().y - 1) * game.size().x + i) as usize] -= 1;
             }
         }*/
 
@@ -103,8 +103,8 @@ async fn init() {
             for x in spread_center.saturating_sub(spread_raduis)
                 ..=(std::cmp::min(FIRE_WIDTH as usize - 1, spread_center + spread_raduis))
             {
-                firepixel[((game.size.1 - 1) * game.size.0 + x as u32) as usize] = firepixel
-                    [((game.size.1 - 1) * game.size.0 + x as u32) as usize]
+                firepixel[((game.size().y - 1) * game.size().x + x as u32) as usize] = firepixel
+                    [((game.size().y - 1) * game.size().x + x as u32) as usize]
                     .saturating_sub(1);
             }
         }
@@ -113,17 +113,17 @@ async fn init() {
             for x in spread_center.saturating_sub(spread_raduis)
                 ..=(std::cmp::min(FIRE_WIDTH as usize - 1, spread_center + spread_raduis))
             {
-                firepixel[((game.size.1 - 1) * game.size.0 + x as u32) as usize] = std::cmp::min(
-                    firepixel[((game.size.1 - 1) * game.size.0 + x as u32) as usize] + 1,
+                firepixel[((game.size().y - 1) * game.size().x + x as u32) as usize] = std::cmp::min(
+                    firepixel[((game.size().y - 1) * game.size().x + x as u32) as usize] + 1,
                     36,
                 );
             }
         }
 
         do_fire(&mut firepixel);
-        for y in 0..game.size.1 {
-            for x in 0..game.size.0 {
-                let index = firepixel[(y * game.size.0 + x) as usize];
+        for y in 0..game.size().y {
+            for x in 0..game.size().x {
+                let index = firepixel[(y * game.size().x + x) as usize];
                 let pixel = palette[index];
                 game.draw((x as i32, y as i32), pixel);
             }

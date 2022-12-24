@@ -24,10 +24,10 @@ async fn init() {
             if game.get_key(Left).any() && end[0] > 0 {
                 end[0] -= 1;
             }
-            if game.get_key(Right).any() && end[0] < game.size.0 - 1 {
+            if game.get_key(Right).any() && end[0] < game.size().x - 1 {
                 end[0] += 1;
             }
-            if game.get_key(Down).any() && end[1] < game.size.1 - 1 {
+            if game.get_key(Down).any() && end[1] < game.size().y - 1 {
                 end[1] += 1;
             }
             if game.get_key(Up).any() && end[1] > 0 {
@@ -38,10 +38,10 @@ async fn init() {
             if game.get_key(Left).any() && start[0] > 0 {
                 start[0] -= 1;
             }
-            if game.get_key(Right).any() && start[0] < game.size.0 - 1 {
+            if game.get_key(Right).any() && start[0] < game.size().x - 1 {
                 start[0] += 1;
             }
-            if game.get_key(Down).any() && start[1] < game.size.1 - 1 {
+            if game.get_key(Down).any() && start[1] < game.size().y - 1 {
                 start[1] += 1;
             }
             if game.get_key(Up).any() && start[1] > 0 {

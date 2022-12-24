@@ -19,7 +19,7 @@ pub async fn init() {
     let cell_size = Vi2d { x: 16, y: 16 };
     let mut map = vec![0u8; (map_size.x * map_size.y) as usize];
 
-    game.run(move |game| {
+    game.run(move |game: &mut pixel_engine::Engine| {
         let mouse = Vu2d::from(game.get_mouse_location()).cast_f32();
         let mousecell = mouse / cell_size.cast_f32();
         let cell = mousecell.cast_i32();

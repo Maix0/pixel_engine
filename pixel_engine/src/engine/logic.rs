@@ -141,8 +141,8 @@ impl EngineWrapper {
                         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
                         {
                             engine.mouse.pos = (
-                                (x / f64::from(engine.size.2)).trunc().abs() as u32,
-                                (y / f64::from(engine.size.2)).trunc().abs() as u32,
+                                (x / f64::from(engine.scale())).trunc().abs() as u32,
+                                (y / f64::from(engine.scale())).trunc().abs() as u32,
                             );
                         };
                     }
@@ -309,7 +309,7 @@ impl std::fmt::Debug for Engine {
         f.debug_struct("Engine")
             .field("title", &self.title)
             .field("size", &self.size())
-            .field("scale", &self.size.2)
+            .field("scale", &self.scale())
             .field("elapsed", &self.elapsed)
             .finish()
     }

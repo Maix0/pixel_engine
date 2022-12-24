@@ -55,7 +55,7 @@ async fn init() {
     let fac = 5;
     let game = EngineWrapper::new("Pixel FPS".to_owned(), (120 * fac, 60 * fac, 10 / fac)).await;
     // =======================
-    let viewport = (game.size.0, 7 * game.size.1 / 8);
+    let viewport = (game.size().x, 7 * game.size().y / 8);
     let mut player = Player::new();
     #[cfg(not(target_arch = "wasm32"))]
     let mut map = maps::WorldConstructor::load_file(String::from("maps/dev.map"))
@@ -241,7 +241,7 @@ async fn init() {
             }
         }
         game.draw_text(
-            (0, (game.size.1 - 18) as i32),
+            (0, (game.size().y - 18) as i32),
             2,
             [255, 255, 255].into(),
             &format!("{:.5}", game.elapsed),

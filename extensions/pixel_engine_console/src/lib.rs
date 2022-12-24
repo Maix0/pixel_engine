@@ -108,7 +108,7 @@ impl PixelConsole {
         }: PixelConsoleOptions,
     ) -> Self {
         let decals = decals.unwrap_or_else(|| DecalStorage::new(game));
-        let line_size = line_size.unwrap_or((((game.size.0 * game.size.2) - 3) / 2) as usize);
+        let line_size = line_size.unwrap_or((((game.size().x * game.scale()) - 3) / 2) as usize);
         let char_scale: Vf2d = (1.0, 1.0).into();
         console_logger::install(
             buffer_size.unwrap_or(256),
@@ -116,13 +116,13 @@ impl PixelConsole {
             line_size,
         )
         .expect("Unable to set logger");
-        let console_height = console_height.unwrap_or((game.size.1 * game.size.2) as f32 / 2.0);
+        let console_height = console_height.unwrap_or((game.size().y * game.scale()) as f32 / 2.0);
         let logger = get_logger().expect("Error when getting console_logger");
         Self {
             decals,
             char_scale,
             current_line: 0,
-            line_height: char_scale.y * 8.0 * game.size.2 as f32 + 2.0,
+            line_height: char_scale.y * 8.0 * game.scale() as f32 + 2.0,
             console_height,
             logger,
         }

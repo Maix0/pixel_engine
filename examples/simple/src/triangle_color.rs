@@ -12,16 +12,16 @@ async fn init() {
     }
     let base = 0.95f32;
     let green = (
-        (game.size.0 as f32 * (1f32 - base)) as i32,
-        (game.size.1 as f32 * base) as i32,
+        (game.size().x as f32 * (1f32 - base)) as i32,
+        (game.size().y as f32 * base) as i32,
     );
     let blue = (
-        (game.size.0 as f32 * base) as i32,
-        (game.size.1 as f32 * base) as i32,
+        (game.size().x as f32 * base) as i32,
+        (game.size().y as f32 * base) as i32,
     );
     let red: (i32, i32) = (
-        (game.size.0 as f32 * 0.50f32) as i32,
-        (game.size.1 as f32 * base) as i32
+        (game.size().x as f32 * 0.50f32) as i32,
+        (game.size().y as f32 * base) as i32
             - (dist(green, blue).powi(2) - (dist(green, blue) / 2f64).powi(2)).sqrt() as i32,
     );
 
@@ -45,8 +45,8 @@ async fn init() {
             (red.1 - blue.1) * blue.0 + (blue.0 - red.0) * blue.1,
         ),
     );
-    for x in 0..(game.size.0) {
-        for y in 0..(game.size.1) {
+    for x in 0..(game.size().x) {
+        for y in 0..(game.size().y) {
             if (lines.0).0 * x as i32 + (lines.0).1 * y as i32 >= (lines.0).2
                 && (lines.1).0 * x as i32 + (lines.1).1 * y as i32 >= (lines.1).2
                 && (lines.2).0 * x as i32 + (lines.2).1 * y as i32 >= (lines.2).2
@@ -66,7 +66,7 @@ async fn init() {
             }
         }
     }
-    game.run(|_| Ok(true));
+    game.run(|game: &mut pixel_engine::Engine| Ok(game.get_key(pixel_engine::inputs::Keycodes::Escape).any()));
 }
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn triangle_color() {

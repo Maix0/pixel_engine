@@ -313,8 +313,6 @@ async fn game() {
     wrapper.clear(Color::BLACK);
     wrapper.run(move |engine: &mut px::Engine| {
         if engine.get_key(Keycodes::Escape).any() {
-            engine.destroy_decal(&tilesheet_decal);
-            engine.destroy_decal(&selected_decal);
             return Ok(false);
         }
         engine.clear(Color::BLACK);
@@ -392,7 +390,6 @@ async fn game() {
                     .collect::<Vec<_>>()
             );
         }
-
 
         for quad in quads.drain(..) {
             let points = quad.points.map(|v| Vf2d { x: v.x, y: v.y });
