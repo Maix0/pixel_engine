@@ -1,4 +1,5 @@
 use crate::Vertex;
+use float_next_after::NextAfter;
 use wgpu::util::DeviceExt;
 pub type DecalTextureID = usize;
 
@@ -32,7 +33,12 @@ pub struct DecalContextManager {
 
 impl DecalContextManager {
     #[must_use]
-    pub fn new(device: &wgpu::Device) -> (Self, wgpu::CommandBuffer) {
+    pub fn new(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        bind_group_layout: &wgpu::BindGroupLayout,
+        spr: (&[u8], (u32, u32)),
+    ) -> (Self, wgpu::CommandBuffer) {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("decal"),
         });
@@ -69,8 +75,47 @@ impl DecalContextManager {
                 id_generator: DecalIDGenerator(0),
                 buffer_index,
                 vertex_vector,
-                decal_textures: std::collections::HashMap::with_capacity(64),
-                decal_instances: Vec::with_capacity(128),
+                decal_textures: {
+                    let mut out = std::collections::HashMap::with_capacity(64);
+
+                    let tex = crate::texture::Texture::from_bytes(&device, &queue, spr);
+                    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        layout: &bind_group_layout,
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: wgpu::BindingResource::TextureView(&tex.view),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: wgpu::BindingResource::Sampler(&tex.sampler),
+                            },
+                        ],
+                        label: Some("decal_bindgroup"),
+                    });
+
+                    out.insert(0usize, (tex, bind_group));
+                    out
+                },
+                decal_instances: {
+                    let mut out = Vec::with_capacity(128);
+                    out.push(DecalInstances {
+                        id: 0,
+                        pos: {
+                            use crate::CORNER;
+                            [
+                                (-CORNER, CORNER),
+                                (-CORNER, -CORNER),
+                                (CORNER, -CORNER),
+                                (CORNER, CORNER),
+                            ]
+                        },
+                        uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+                        w: [1.0; 4],
+                        tint: [1.0; 4],
+                    });
+                    out
+                },
                 cpu_vertex_vector: Vec::with_capacity(128),
             },
             encoder.finish(),
@@ -78,6 +123,10 @@ impl DecalContextManager {
     }
     pub fn add_instance(&mut self, decal: DecalInstances) {
         self.decal_instances.push(decal);
+    }
+
+    pub fn update_main_texture(&mut self, queue: &wgpu::Queue, data: &[u8]) {
+        (self.decal_textures[&0].0).update(queue, data);
     }
 }
 
@@ -149,10 +198,12 @@ where
         device: &'b mut wgpu::Device,
         queue: &'b mut wgpu::Queue,
     ) {
+        let mut z = 0.0;
         for decal_instance in dcm.decal_instances.iter() {
+            //z += 0.05;
             dcm.cpu_vertex_vector.push([
                 Vertex {
-                    position: [decal_instance.pos[0].0, decal_instance.pos[0].1, 0.0],
+                    position: [decal_instance.pos[0].0, decal_instance.pos[0].1, z],
                     tex_coords: [
                         decal_instance.uv[0].0,
                         decal_instance.uv[0].1,
@@ -161,7 +212,7 @@ where
                     tint: decal_instance.tint,
                 },
                 Vertex {
-                    position: [decal_instance.pos[1].0, decal_instance.pos[1].1, 0.0],
+                    position: [decal_instance.pos[1].0, decal_instance.pos[1].1, z],
                     tex_coords: [
                         decal_instance.uv[1].0,
                         decal_instance.uv[1].1,
@@ -170,7 +221,7 @@ where
                     tint: decal_instance.tint,
                 },
                 Vertex {
-                    position: [decal_instance.pos[2].0, decal_instance.pos[2].1, 0.0],
+                    position: [decal_instance.pos[2].0, decal_instance.pos[2].1, z],
                     tex_coords: [
                         decal_instance.uv[2].0,
                         decal_instance.uv[2].1,
@@ -179,7 +230,7 @@ where
                     tint: decal_instance.tint,
                 },
                 Vertex {
-                    position: [decal_instance.pos[3].0, decal_instance.pos[3].1, 0.0],
+                    position: [decal_instance.pos[3].0, decal_instance.pos[3].1, z],
                     tex_coords: [
                         decal_instance.uv[3].0,
                         decal_instance.uv[3].1,
@@ -188,12 +239,14 @@ where
                     tint: decal_instance.tint,
                 },
             ]);
+
+            z = z.next_after(-f32::INFINITY);
         }
 
         let command = dcm.vertex_vector.sync(device, &dcm.cpu_vertex_vector);
-        queue.submit(std::iter::once(command));
         let buffer = dcm.vertex_vector.buffer();
 
+        self.set_index_buffer(dcm.buffer_index.slice(..), wgpu::IndexFormat::Uint16);
         for (range, instance) in dcm
             .vertex_vector
             .iter_offsets()
@@ -207,10 +260,25 @@ where
             // Update buffers
 
             self.set_bind_group(0, &texture.1, &[]);
-            self.set_index_buffer(dcm.buffer_index.slice(..), wgpu::IndexFormat::Uint16);
             self.set_vertex_buffer(0, buffer.slice(range));
             self.draw_indexed(0..(crate::INDICES.len() as u32), 0, 0..1);
         }
         dcm.cpu_vertex_vector.clear();
+        dcm.decal_instances.push(DecalInstances {
+            id: 0,
+            pos: {
+                use crate::CORNER;
+                [
+                    (-CORNER, CORNER),
+                    (-CORNER, -CORNER),
+                    (CORNER, -CORNER),
+                    (CORNER, CORNER),
+                ]
+            },
+            uv: [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)],
+            w: [1.0; 4],
+            tint: [1.0; 4],
+        });
+        queue.submit(std::iter::once(command));
     }
 }

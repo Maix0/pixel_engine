@@ -101,6 +101,7 @@ pub struct Context {
     main_texture: texture::Texture,
     main_bind_group: wgpu::BindGroup,
     bind_group_layout: wgpu::BindGroupLayout,
+
     dcm: decals::DecalContextManager,
 }
 
@@ -136,12 +137,14 @@ impl Context {
             .expect("Error when getting device and queue");
 
         device.on_uncaptured_error(|error| panic!("[WGPU Error] {}", error));
-
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
+            #[cfg(target_arch = "wasm32")]
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            #[cfg(not(target_arch = "wasm32"))]
+            format: wgpu::TextureFormat::Bgra8UnormSrgb,
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
@@ -215,6 +218,7 @@ impl Context {
             ],
             label: Some("main_bind_group"),
         });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("pipeline_layout"),
@@ -258,21 +262,8 @@ impl Context {
             multisample: wgpu::MultisampleState {
                 count: 1,                         // 2.
                 mask: !0,                         // 3.
-                alpha_to_coverage_enabled: true, // 4.
+                alpha_to_coverage_enabled: false, // 4.
             },
-            // color_states: &[wgpu::ColorStateDescriptor {
-            //     format: sc_desc.format,
-            //     color_blend: wgpu::BlendDescriptor::REPLACE,
-            //     alpha_blend: wgpu::BlendDescriptor::REPLACE,
-            //     write_mask: wgpu::ColorWrite::ALL,
-            // }],
-            // vertex_state: wgpu::VertexStateDescriptor {
-            //     index_format: wgpu::IndexFormat::Uint16,
-            //     vertex_buffers: &[Vertex::desc()],
-            // },
-            // sample_count: 1,
-            // sample_mask: !0,
-            // alpha_to_coverage_enabled: false,
         });
         let encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
@@ -294,7 +285,15 @@ impl Context {
         });
         queue.submit(std::iter::once(encoder.finish()));
         let num_indices = INDICES.len() as u32;
-        let (dcm, cmd) = decals::DecalContextManager::new(&device);
+        let (dcm, cmd) = decals::DecalContextManager::new(
+            &device,
+            &queue,
+            &texture_bind_group_layout,
+            (
+                &vec![0, 0, 0, 255].repeat((px_size.0 * px_size.1) as usize),
+                (px_size.0, px_size.1),
+            ),
+        );
         queue.submit(std::iter::once(cmd));
         Self {
             surface,
@@ -313,7 +312,8 @@ impl Context {
     }
 
     pub fn render(&mut self, data: &[u8]) {
-        self.main_texture.update(&self.queue, data);
+        //self.main_texture.update(&self.queue, data);
+        self.dcm.update_main_texture(&self.queue, data);
         if let Ok(frame) = self.surface.get_current_texture() {
             //.expect("Timeout getting texture");
 
@@ -332,22 +332,25 @@ impl Context {
                         view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+
                             store: true,
                         },
                     })],
                     depth_stencil_attachment: None,
                     label: Some("Render Pass"),
                 });
+
                 use decals::DrawDecals;
 
                 render_pass.set_pipeline(&self.render_pipeline);
-                render_pass.set_bind_group(0, &self.main_bind_group, &[]);
-                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+
+                //render_pass.set_bind_group(0, &self.main_bind_group, &[]);
+                //render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                 render_pass.draw_decals(&mut self.dcm, &mut self.device, &mut self.queue);
+                //render_pass
+                //    .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                //render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
             }
             self.queue.submit(std::iter::once(encoder.finish()));
             frame.present();
