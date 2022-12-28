@@ -98,8 +98,6 @@ pub struct Context {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
-    main_texture: texture::Texture,
-    main_bind_group: wgpu::BindGroup,
     bind_group_layout: wgpu::BindGroupLayout,
 
     dcm: decals::DecalContextManager,
@@ -145,7 +143,7 @@ impl Context {
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             #[cfg(not(target_arch = "wasm32"))]
             format: wgpu::TextureFormat::Bgra8UnormSrgb,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::AutoNoVsync,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
 
@@ -173,15 +171,6 @@ impl Context {
             source: wgpu::ShaderSource::SpirV(std::borrow::Cow::from(fs_data)),
         });
 
-        let main_texture = texture::Texture::from_bytes(
-            &device,
-            &queue,
-            (
-                &vec![0, 0, 0, 255].repeat((px_size.0 * px_size.1) as usize),
-                (px_size.0, px_size.1),
-            ),
-        );
-
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -204,20 +193,6 @@ impl Context {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-        let main_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&main_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&main_texture.sampler),
-                },
-            ],
-            label: Some("main_bind_group"),
-        });
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -304,8 +279,6 @@ impl Context {
             config,
             index_buffer,
             num_indices,
-            main_bind_group,
-            main_texture,
             bind_group_layout: texture_bind_group_layout,
             dcm,
         }
@@ -345,12 +318,7 @@ impl Context {
 
                 render_pass.set_pipeline(&self.render_pipeline);
 
-                //render_pass.set_bind_group(0, &self.main_bind_group, &[]);
-                //render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                 render_pass.draw_decals(&mut self.dcm, &mut self.device, &mut self.queue);
-                //render_pass
-                //    .set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                //render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
             }
             self.queue.submit(std::iter::once(encoder.finish()));
             frame.present();
