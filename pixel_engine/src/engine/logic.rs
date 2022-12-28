@@ -1,5 +1,5 @@
 use super::decals::Decal;
-use super::inputs::{self, Input, KeySet, Mouse, MouseBtn, MouseWheel};
+use super::inputs::{self, Input, Mouse, MouseBtn, MouseWheel};
 use super::Sprite;
 
 use pixel_engine_draw::traits::SmartDrawingTrait;
@@ -48,9 +48,9 @@ impl EngineWrapper {
             Ok(game) => game,
             Err(e) => {
                 if cfg!(debug_assertions) {
-                    println!("Game Stopped:\n{:?}", e);
+                    println!("Unable to create game instance:\n{:?}", e);
                 } else {
-                    println!("Game Stopped:\n{}", e);
+                    println!("Unable to create game instance:\n{}", e);
                 }
                 std::process::abort();
             }
@@ -67,7 +67,12 @@ impl EngineWrapper {
         let event_loop = engine.event_loop.take().unwrap();
         let mut redraw = true;
         let mut redraw_last_frame = false;
+
+        let spr = px_draw::graphics::Sprite::new_with_color(5, 5, px_draw::graphics::Color::GREEN);
+        let spr2 = px_draw::graphics::Sprite::new_with_color(5, 5, px_draw::graphics::Color::RED);
+
         event_loop.run(move |e, _, control_flow| {
+            *control_flow = winit::event_loop::ControlFlow::Poll;
             if redraw_last_frame {
                 for key in &engine.k_pressed {
                     engine.k_held.insert(*key);
@@ -91,6 +96,13 @@ impl EngineWrapper {
                         .for_each(|decal| decal.destroy(&mut engine.handler));
                 });
             }
+            if engine.input_toggle {
+                use px_draw::traits::SpriteTrait;
+                engine.draw_sprite((0, 0), 1, &spr, (false, false));
+            } else {
+                use px_draw::traits::SpriteTrait;
+                engine.draw_sprite((0, 0), 1, &spr2, (false, false));
+            }
             match e {
                 Event::WindowEvent {
                     event: e,
@@ -98,13 +110,13 @@ impl EngineWrapper {
                 } if window_id == engine.window.id() => match e {
                     WindowEvent::KeyboardInput { input: inp, .. } => {
                         if !engine.input_toggle {
-                            if let Some(k) = inp.virtual_keycode {
+                            if let Some(key) = inp.virtual_keycode {
                                 if inp.state == winit::event::ElementState::Released {
-                                    engine.k_pressed.remove(&inputs::Key::from(inp));
-                                    engine.k_held.remove(&inputs::Key::from(inp));
-                                    engine.k_released.insert(inputs::Key::from(inp));
-                                } else if !engine.k_held.has(k) {
-                                    engine.k_pressed.insert(inputs::Key::from(inp));
+                                    engine.k_pressed.remove(&key);
+                                    engine.k_held.remove(&key);
+                                    engine.k_released.insert(key);
+                                } else if !engine.k_held.contains(&key) {
+                                    engine.k_pressed.insert(key);
                                 }
                             }
                         } else if inp.state == px_backend::winit::event::ElementState::Pressed {
@@ -120,6 +132,12 @@ impl EngineWrapper {
                                 }
                                 Some(winit::event::VirtualKeyCode::Return) => {
                                     engine.finish_input = true;
+                                    let input = std::mem::replace(
+                                        &mut engine.input_buffer,
+                                        String::with_capacity(128),
+                                    );
+                                    engine.input_cursor = 0;
+                                    game.receive_input(&mut engine, input);
                                 }
                                 Some(winit::event::VirtualKeyCode::Left) => {
                                     engine.input_cursor = engine.input_cursor.saturating_sub(1);
@@ -129,6 +147,17 @@ impl EngineWrapper {
                                         engine.input_buffer.len().min(engine.input_cursor + 1);
                                 }
                                 _ => {}
+                            }
+                            if let Some(key) = inp.virtual_keycode {
+                                if engine.input_passthrough.contains(&key) {
+                                    if inp.state == winit::event::ElementState::Released {
+                                        engine.k_pressed.remove(&key);
+                                        engine.k_held.remove(&key);
+                                        engine.k_released.insert(key);
+                                    } else if !engine.k_held.contains(&key) {
+                                        engine.k_pressed.insert(key);
+                                    }
+                                }
                             }
                         }
                     }
@@ -224,6 +253,7 @@ impl EngineWrapper {
                         engine.input_buffer.insert(engine.input_cursor, char);
                         engine.input_cursor += 1;
                     }
+
                     //event => println!("missed_event: {event:?}"),
                     _ => {}
                 },
@@ -296,10 +326,11 @@ pub struct Engine {
     input_buffer: String,
     input_toggle: bool,
     input_cursor: usize,
+    input_passthrough: std::collections::HashSet<inputs::Keycodes>,
     finish_input: bool,
-    k_pressed: std::collections::HashSet<inputs::Key>,
-    k_held: std::collections::HashSet<inputs::Key>,
-    k_released: std::collections::HashSet<inputs::Key>,
+    k_pressed: std::collections::HashSet<inputs::Keycodes>,
+    k_held: std::collections::HashSet<inputs::Keycodes>,
+    k_released: std::collections::HashSet<inputs::Keycodes>,
     mouse: Mouse,
     event_loop: Option<winit::event_loop::EventLoop<()>>,
     window: winit::window::Window,
@@ -386,6 +417,7 @@ impl Engine {
             input_toggle: false,
             input_cursor: 0,
             finish_input: false,
+            input_passthrough: std::collections::HashSet::new(),
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
@@ -417,9 +449,9 @@ impl Engine {
     #[inline]
     pub fn get_key(&self, keycode: inputs::Keycodes) -> Input {
         Input::new(
-            self.k_pressed.has(keycode),
-            self.k_held.has(keycode),
-            self.k_released.has(keycode),
+            self.k_pressed.contains(&keycode),
+            self.k_held.contains(&keycode),
+            self.k_released.contains(&keycode),
         )
     }
     /// Get the status of a Mouse Button
@@ -442,20 +474,100 @@ impl Engine {
     }
     /// Get all Keys pressed during the last frame
     pub fn get_pressed(&self) -> std::collections::HashSet<inputs::Keycodes> {
-        self.k_pressed.clone().iter().map(|k| k.key).collect()
+        self.k_pressed.clone()
     }
     /// Get all the keys that were held during the last frame
     pub fn get_held(&self) -> std::collections::HashSet<inputs::Keycodes> {
-        self.k_held.clone().iter().map(|k| k.key).collect()
+        self.k_held.clone()
     }
     /// Get all the keys that were released during the last frame
     pub fn get_released(&self) -> std::collections::HashSet<inputs::Keycodes> {
-        self.k_released.clone().iter().map(|k| k.key).collect()
+        self.k_released.clone()
     }
 
     /// Create a GPU version of [`Sprite`]
     pub fn create_decal(&mut self, sprite: &Sprite) -> Decal {
         Decal::new(&mut self.handler, sprite)
+    }
+
+    /// Will clear the input buffer and set the cursor to 0
+    pub fn clear_input_buffer(&mut self) {
+        self.input_buffer.clear();
+        self.input_cursor = 0;
+    }
+
+    /// Set the input buffer to the desired value and put the input cursor at the end of the text
+    ///
+    /// # Warning
+    ///
+    /// The value must be an ascii string
+    pub fn set_input_buffer(&mut self, value: impl AsRef<str>) {
+        let value = value.as_ref();
+        if value.is_ascii() {
+            self.clear_input_buffer();
+            self.input_buffer.push_str(value.as_ref());
+            self.input_cursor = self.input_buffer.len();
+        } else if cfg!(debug_assertions) {
+            eprintln!("You can only pass valid ascii string into the input");
+        }
+    }
+
+    /// Insert the given string into the input buffer at the input cursor
+    ///
+    /// # Warning
+    ///
+    /// if the string is not only ASCII characters it will silently do nothing
+    pub fn insert_input_buffer(&mut self, value: impl AsRef<str>) {
+        let value = value.as_ref();
+        if value.is_ascii() {
+            self.input_buffer.insert_str(self.input_cursor, value);
+            self.input_cursor += value.len();
+        } else if cfg!(debug_assertions) {
+            eprintln!("You can only pass valid ascii string into the input");
+        }
+    }
+
+    /// Append the given string onto the input buffer
+    ///
+    /// # Warning
+    ///
+    /// if the string is not only ASCII characters it will silently do nothing
+    pub fn append_input_buffer(&mut self, value: impl AsRef<str>) {
+        let value = value.as_ref();
+        if value.is_ascii() {
+            self.input_buffer.push_str(value);
+            self.input_cursor += value.len();
+        } else if cfg!(debug_assertions) {
+            eprintln!("You can only pass valid ascii string into the input");
+        }
+    }
+
+    /// Add keys onto the input pass through list
+    pub fn add_input_passthrough(&mut self, iterator: impl Iterator<Item = inputs::Keycodes>) {
+        self.input_passthrough.extend(iterator);
+    }
+
+    /// Remove keys onto the input pass through list
+    pub fn remove_input_passthrough(&mut self, iterator: impl Iterator<Item = inputs::Keycodes>) {
+        for key in iterator {
+            self.input_passthrough.remove(&key);
+        }
+    }
+
+    /// Set the input to the iterator
+    pub fn set_input_passthrough(&mut self, iterator: impl Iterator<Item = inputs::Keycodes>) {
+        self.input_passthrough.clear();
+        self.input_passthrough.extend(iterator);
+    }
+
+    /// Return a view into the input buffer
+    pub fn get_input_buffer(&self) -> &str {
+        &self.input_buffer
+    }
+
+    /// Return the input cursor
+    pub fn get_input_cursor(&self) -> usize {
+        self.input_cursor
     }
 
     /// Switch to text input mode, return true if it wasn't in this mode before
@@ -480,28 +592,5 @@ impl Engine {
     pub fn end_input_mode(&mut self) -> &str {
         self.input_toggle = false;
         self.input_buffer.as_str()
-    }
-
-    /// Return the string when input mode ends (when the key `Enter` has been pressed)
-    /// This is different than [`end_input_mode`](Engine::end_input_mode) as it will return the
-    /// buffer (and create a new empty one).
-    /// This is used when you want to wait until the user has finished typing
-    pub fn try_get_finished_input(&mut self) -> Option<String> {
-        let ret = self.finish_input.then(|| {
-            self.input_cursor = 0;
-            std::mem::replace(&mut self.input_buffer, String::with_capacity(32))
-        });
-        self.finish_input = false;
-        ret
-    }
-
-    /// Return the current input buffer as a [string slice](str)
-    pub fn get_input_buffer(&self) -> &str {
-        self.input_buffer.as_str()
-    }
-
-    /// Return the current input cursor position
-    pub fn get_input_cursor(&self) -> usize {
-        self.input_cursor
     }
 }

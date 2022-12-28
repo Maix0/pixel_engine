@@ -59,14 +59,18 @@
           ];
 
           LIB_PATH = lib.makeLibraryPath [
-            #wayland wayland-protocols
-            xorg.libX11
-            xorg.libXcursor
-            xorg.libXrandr
-            xorg.libXi
+            wayland
+            wayland-protocols
+            #xorg.libX11
+            #xorg.libXcursor
+            #xorg.libXrandr
+            #xorg.libXi
             libxkbcommon
+            glslang # or shaderc
+            vulkan-headers
+            vulkan-validation-layers
             vulkan-loader
-            libGL
+            #libGL
             androidComposition.androidsdk
             fontconfig
             freetype
@@ -92,6 +96,8 @@
           shellHook = ''
             export LD_LIBRARY_PATH=$LIB_PATH:$LD_LIBRARY_PATH
           '';
+
+          VULKAN_SDK = "${vulkan-validation-layers}/share/vulkan/explicit_layer.d";
         };
     });
 }
