@@ -1,5 +1,5 @@
-use pixel_engine;
-use pixel_engine_console::{self, ConsoleGame};
+
+use pixel_engine_console::{self, ConsoleEngine};
 #[macro_use]
 extern crate log;
 
@@ -9,7 +9,8 @@ use pixel_engine::traits::*;
 struct Game;
 
 impl pixel_engine::Game for Game {
-    fn create(_engine: &mut pixel_engine::Engine) -> Result<Self, Box<dyn std::error::Error>> {
+    fn create(engine: &mut pixel_engine::Engine) -> Result<Self, Box<dyn std::error::Error>> {
+        engine.set_ignore_passthrough_chars(true);
         Ok(Self)
     }
 
@@ -45,14 +46,13 @@ impl pixel_engine::Game for Game {
         }
 
         if engine.get_key(Keycodes::Space).pressed {
-            self.open_console(Keycodes::Escape, true);
+            engine.open_console(Keycodes::Escape, true);
         }
-
-        if engine.get_key(Keycodes::Escape).any() {
+        if engine.get_key(Keycodes::Escape).pressed && !engine.is_console_opened() {
             return Ok(false);
         }
         Ok(true)
-   }
+    }
 
     fn receive_input(&mut self, _engine: &mut pixel_engine::Engine, input: String) {
         debug!(target: "console", "recieved_input: {input:?}");
@@ -75,7 +75,7 @@ impl pixel_engine_console::ConsoleGame for Game {
 async fn game() {
     let mut engine =
         pixel_engine::EngineWrapper::new("Console Test".to_string(), (500, 500, 2)).await;
-    engine.clear(pixel_engine::Color::BLUE);
+    engine.clear(pixel_engine::Color::WHITE);
     engine.run_init::<pixel_engine_console::GameWrapper<Game>>();
 }
 

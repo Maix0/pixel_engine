@@ -67,10 +67,7 @@ impl EngineWrapper {
         let event_loop = engine.event_loop.take().unwrap();
         let mut redraw = true;
         let mut redraw_last_frame = false;
-
-        let spr = px_draw::graphics::Sprite::new_with_color(5, 5, px_draw::graphics::Color::GREEN);
-        let spr2 = px_draw::graphics::Sprite::new_with_color(5, 5, px_draw::graphics::Color::RED);
-
+        let mut ignore_next_char = false;
         event_loop.run(move |e, _, control_flow| {
             *control_flow = winit::event_loop::ControlFlow::Poll;
             if redraw_last_frame {
@@ -96,19 +93,13 @@ impl EngineWrapper {
                         .for_each(|decal| decal.destroy(&mut engine.handler));
                 });
             }
-            if engine.input_toggle {
-                use px_draw::traits::SpriteTrait;
-                engine.draw_sprite((0, 0), 1, &spr, (false, false));
-            } else {
-                use px_draw::traits::SpriteTrait;
-                engine.draw_sprite((0, 0), 1, &spr2, (false, false));
-            }
             match e {
                 Event::WindowEvent {
                     event: e,
                     window_id,
                 } if window_id == engine.window.id() => match e {
                     WindowEvent::KeyboardInput { input: inp, .. } => {
+                        ignore_next_char = false;
                         if !engine.input_toggle {
                             if let Some(key) = inp.virtual_keycode {
                                 if inp.state == winit::event::ElementState::Released {
@@ -148,15 +139,16 @@ impl EngineWrapper {
                                 }
                                 _ => {}
                             }
-                            if let Some(key) = inp.virtual_keycode {
-                                if engine.input_passthrough.contains(&key) {
-                                    if inp.state == winit::event::ElementState::Released {
-                                        engine.k_pressed.remove(&key);
-                                        engine.k_held.remove(&key);
-                                        engine.k_released.insert(key);
-                                    } else if !engine.k_held.contains(&key) {
-                                        engine.k_pressed.insert(key);
-                                    }
+                        }
+                        if let Some(key) = inp.virtual_keycode {
+                            if engine.input_passthrough.contains(&key) {
+                                ignore_next_char = true;
+                                if inp.state == winit::event::ElementState::Released {
+                                    engine.k_pressed.remove(&key);
+                                    engine.k_held.remove(&key);
+                                    engine.k_released.insert(key);
+                                } else if !engine.k_held.contains(&key) {
+                                    engine.k_pressed.insert(key);
                                 }
                             }
                         }
@@ -248,7 +240,10 @@ impl EngineWrapper {
                         }
                     }
                     WindowEvent::ReceivedCharacter(char)
-                        if engine.input_toggle && char.is_ascii() && !char.is_control() =>
+                        if engine.input_toggle
+                            && !(engine.ignore_passthrough_char && ignore_next_char)
+                            && char.is_ascii()
+                            && !char.is_control() =>
                     {
                         engine.input_buffer.insert(engine.input_cursor, char);
                         engine.input_cursor += 1;
@@ -292,11 +287,16 @@ impl EngineWrapper {
                     }
                     *control_flow = winit::event_loop::ControlFlow::Exit;
                 }
-                let (raw, readlock) = engine.screen.get_ref().get_read_lock();
-                engine.handler.render(raw);
+                if engine.has_changed {
+                    let (raw, readlock) = engine.screen.get_ref().get_read_lock();
+                    engine.handler.render(raw);
+                    drop(readlock);
+                    engine.has_changed = false;
+                } else {
+                    engine.handler.render_no_update();
+                }
                 redraw = false;
                 redraw_last_frame = true;
-                drop(readlock);
             }
         });
     }
@@ -305,15 +305,17 @@ impl EngineWrapper {
 /**
  *  Bone of the Engine, join everything;
  **/
+#[allow(clippy::struct_excessive_bools)]
 pub struct Engine {
     /* FRONTEND */
-    /// Main title of the window, Window's full title will be "Title - fps"
+    /// Main title of the window, Window's full title will be `Title - fps`
+    /// You can modify it to change the title
     pub title: String,
     /// Size of the window, with (x-size,y-size,pixel-size)
     size: (u32, u32, u32),
 
     /* TIME */
-    /// Time between current frame and last frame, usefull for movement's calculations
+    /// Time between current frame and last frame, useful for movement's calculations
     pub elapsed: f64,
     timer: instant::Instant,
     frame_count: u64,
@@ -321,12 +323,14 @@ pub struct Engine {
 
     /* BACKEND */
     pub(crate) screen: DrawingSprite<Sprite>,
+    pub(crate) has_changed: bool,
     pub(crate) handler: px_backend::Context,
     pub(crate) textsheet_decal: Decal,
     input_buffer: String,
     input_toggle: bool,
     input_cursor: usize,
     input_passthrough: std::collections::HashSet<inputs::Keycodes>,
+    ignore_passthrough_char: bool,
     finish_input: bool,
     k_pressed: std::collections::HashSet<inputs::Keycodes>,
     k_held: std::collections::HashSet<inputs::Keycodes>,
@@ -412,12 +416,14 @@ impl Engine {
             /* BACKEND */
             handler,
             screen,
+            has_changed: true,
             textsheet_decal,
             input_buffer: String::with_capacity(32),
             input_toggle: false,
             input_cursor: 0,
             finish_input: false,
             input_passthrough: std::collections::HashSet::new(),
+            ignore_passthrough_char: false,
             k_pressed: std::collections::HashSet::new(),
             k_held: std::collections::HashSet::new(),
             k_released: std::collections::HashSet::new(),
@@ -436,11 +442,13 @@ impl Engine {
         futures::executor::block_on(Self::new(title, size))
     }
     /// Return the current Target size in pixel
+    #[inline]
     pub fn size(&self) -> Vu2d {
         self.screen.get_size()
     }
 
     /// Return the pixel scale factor
+    #[inline]
     pub fn scale(&self) -> u32 {
         self.size.2
     }
@@ -465,32 +473,39 @@ impl Engine {
 
     /// Get the mouse location (in pixel) on the screen
     /// Will be defaulted to (0,0) at the start of the program
-    pub fn get_mouse_location(&self) -> (u32, u32) {
-        self.mouse.pos
+    #[inline]
+    pub fn get_mouse_location(&self) -> Vu2d {
+        self.mouse.pos.into()
     }
     /// Get the scroll wheel direction (If Any) during the frame
+    #[inline]
     pub fn get_mouse_wheel(&self) -> MouseWheel {
         self.mouse.wheel
     }
     /// Get all Keys pressed during the last frame
+    #[inline]
     pub fn get_pressed(&self) -> std::collections::HashSet<inputs::Keycodes> {
         self.k_pressed.clone()
     }
     /// Get all the keys that were held during the last frame
+    #[inline]
     pub fn get_held(&self) -> std::collections::HashSet<inputs::Keycodes> {
         self.k_held.clone()
     }
     /// Get all the keys that were released during the last frame
+    #[inline]
     pub fn get_released(&self) -> std::collections::HashSet<inputs::Keycodes> {
         self.k_released.clone()
     }
 
     /// Create a GPU version of [`Sprite`]
+    #[inline]
     pub fn create_decal(&mut self, sprite: &Sprite) -> Decal {
         Decal::new(&mut self.handler, sprite)
     }
 
     /// Will clear the input buffer and set the cursor to 0
+    #[inline]
     pub fn clear_input_buffer(&mut self) {
         self.input_buffer.clear();
         self.input_cursor = 0;
@@ -543,11 +558,13 @@ impl Engine {
     }
 
     /// Add keys onto the input pass through list
+    #[inline]
     pub fn add_input_passthrough(&mut self, iterator: impl Iterator<Item = inputs::Keycodes>) {
         self.input_passthrough.extend(iterator);
     }
 
     /// Remove keys onto the input pass through list
+    #[inline]
     pub fn remove_input_passthrough(&mut self, iterator: impl Iterator<Item = inputs::Keycodes>) {
         for key in iterator {
             self.input_passthrough.remove(&key);
@@ -555,27 +572,39 @@ impl Engine {
     }
 
     /// Set the input to the iterator
+    #[inline]
     pub fn set_input_passthrough(&mut self, iterator: impl Iterator<Item = inputs::Keycodes>) {
         self.input_passthrough.clear();
         self.input_passthrough.extend(iterator);
     }
 
+    /// If set to true, any key that is passed through when in input mode won't have the char
+    /// appended to the input buffer
+    #[inline]
+    pub fn set_ignore_passthrough_chars(&mut self, val: bool) {
+        self.ignore_passthrough_char = val;
+    }
+
     /// Return a view into the input buffer
+    #[inline]
     pub fn get_input_buffer(&self) -> &str {
         &self.input_buffer
     }
 
     /// Return the input cursor
+    #[inline]
     pub fn get_input_cursor(&self) -> usize {
         self.input_cursor
     }
 
     /// Switch to text input mode, return true if it wasn't in this mode before
+    #[inline]
     pub fn start_input(&mut self) {
         self.input_toggle = true;
     }
 
     /// This will clear the input buffer, reset the input cursor and stop the input mode
+    #[inline]
     pub fn force_stop_input_mode(&mut self) {
         self.input_buffer.clear();
         self.input_cursor = 0;
@@ -583,12 +612,14 @@ impl Engine {
     }
 
     /// Is the engine in input mode
+    #[inline]
     pub fn is_in_input_mode(&self) -> bool {
         self.input_toggle
     }
 
     /// Stop the input mode right there, and return a &str to the current buffer. This is if you
     /// need to leave the mode but retain the input buffer for a later re-entry
+    #[inline]
     pub fn end_input_mode(&mut self) -> &str {
         self.input_toggle = false;
         self.input_buffer.as_str()

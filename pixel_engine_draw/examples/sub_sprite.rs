@@ -1,5 +1,5 @@
 extern crate pixel_engine_draw as px_draw;
-use px_draw::{graphics::{Color, DrawSpriteTrait, Sprite}, vector2::Vu2d};
+use px_draw::{graphics::{Color, Sprite}, vector2::Vu2d};
 
 #[path = "./_print_sprite.rs"]
 mod print_spr;

@@ -260,8 +260,8 @@ impl Sprite {
 
         Ok(Sprite {
             size: Vu2d {
-                x: (&img).width(),
-                y: (&img).height(),
+                x: img.width(),
+                y: img.height(),
             },
             raw: Self::image_to_boxedslice(img),
             areas: Mutex::new(slab::Slab::new()),

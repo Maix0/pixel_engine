@@ -78,9 +78,9 @@ impl DecalContextManager {
                 decal_textures: {
                     let mut out = std::collections::HashMap::with_capacity(64);
 
-                    let tex = crate::texture::Texture::from_bytes(&device, &queue, spr);
+                    let tex = crate::texture::Texture::from_bytes(device, queue, spr);
                     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                        layout: &bind_group_layout,
+                        layout: bind_group_layout,
                         entries: &[
                             wgpu::BindGroupEntry {
                                 binding: 0,

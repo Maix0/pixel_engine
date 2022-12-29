@@ -17,6 +17,7 @@ impl px_draw::graphics::DrawSpriteTrait for crate::Engine {
         col: pixel_engine_draw::graphics::Color,
     ) {
         self.screen.set_pixel(pos, col);
+        self.has_changed = true;
     }
     unsafe fn get_pixel_unchecked(
         &self,
@@ -31,6 +32,7 @@ impl px_draw::graphics::DrawSpriteTrait for crate::Engine {
         col: pixel_engine_draw::graphics::Color,
     ) {
         self.screen.set_pixel_unchecked(pos, col);
+        self.has_changed = true;
     }
 }
 
@@ -40,6 +42,7 @@ impl SmartDrawingTrait for crate::Engine {
         pos: P,
         col: pixel_engine_draw::graphics::Color,
     ) {
+        self.has_changed = true;
         self.screen.draw(pos, col);
     }
 

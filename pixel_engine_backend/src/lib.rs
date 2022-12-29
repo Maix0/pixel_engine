@@ -285,11 +285,12 @@ impl Context {
     }
 
     pub fn render(&mut self, data: &[u8]) {
-        //self.main_texture.update(&self.queue, data);
         self.dcm.update_main_texture(&self.queue, data);
-        if let Ok(frame) = self.surface.get_current_texture() {
-            //.expect("Timeout getting texture");
+        self.render_no_update();
+    }
 
+    pub fn render_no_update(&mut self) {
+        if let Ok(frame) = self.surface.get_current_texture() {
             let mut encoder = self
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {

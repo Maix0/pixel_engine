@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 
-pixel_engine = "0.7.0"
+pixel_engine = "0.8.0"
 rand = "0.8.5"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

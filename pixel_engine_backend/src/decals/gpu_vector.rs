@@ -66,7 +66,7 @@ impl<T: bytemuck::Pod> GpuVector<T> {
                 mapped_at_creation: false,
             });
         }
-        let raw_data: &[u8] = bytemuck::cast_slice(&data);
+        let raw_data: &[u8] = bytemuck::cast_slice(data);
         encoder.copy_buffer_to_buffer(
             &device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("gpu_vector_temp_buffer"),
