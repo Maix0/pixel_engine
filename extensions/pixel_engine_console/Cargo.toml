@@ -2,6 +2,9 @@
 name = "pixel_engine_console"
 version = "0.1.0"
 edition = "2021"
+description = "An extension for the pixel_engine game engine that add an in-game console"
+repository = "https://github.com/maix0/pixel_engine"
+license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
