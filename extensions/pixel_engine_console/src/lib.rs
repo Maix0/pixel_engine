@@ -43,39 +43,40 @@
 #![allow(clippy::doc_markdown)]
 use pixel_engine::vector2::Vf2d;
 
-extern crate log;
+#[doc(hidden)]
+pub extern crate log;
 
 mod console_logger;
 
 mod macros {
     #[macro_export]
     macro_rules! cerror {
-        ($($arg:tt)*) => {
-            $crate::log::error!(target:"console", $($args)*);
+        ($($arg:tt),*) => {
+            $crate::log::error!(target:"console", $($arg),*);
         };
     }
     #[macro_export]
     macro_rules! cwarn {
-        ($($arg:tt)*) => {
-            $crate::log::warn!(target:"console", $($args)*);
+        ($($arg:tt),*) => {
+            $crate::log::warn!(target:"console", $($arg),*);
         };
     }
     #[macro_export]
     macro_rules! cinfo {
-        ($($arg:tt)*) => {
-            $crate::log::info!(target:"console", $($args)*);
+        ($($arg:tt),*) => {
+            $crate::log::info!(target:"console", $($arg),*);
         };
     }
     #[macro_export]
     macro_rules! cdebug {
-        ($($arg:tt)*) => {
-            $crate::log::debug!(target:"console", $($args)*);
+        ($($arg:tt),*) => {
+            $crate::log::debug!(target:"console", $($arg),*);
         };
     }
     #[macro_export]
     macro_rules! ctrace {
-        ($($arg:tt)*) => {
-            $crate::log::trace!(target:"console", $($args)*);
+        ($($arg:tt),*) => {
+            $crate::log::trace!(target:"console", $($arg),*);
         };
     }
 }

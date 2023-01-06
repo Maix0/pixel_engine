@@ -31,8 +31,7 @@ impl Transform {
         F1: FnOnce(&px::Engine) -> bool,
         F2: FnOnce(&px::Engine) -> bool,
     {
-        let (mouse_x, mouse_y) = game.get_mouse_location();
-        let mouse: Vf2d = (mouse_x as f32, mouse_y as f32).into();
+        let mouse: Vf2d = game.get_mouse_location().cast_f32();
         if func_start(game) {
             self.start_pan = mouse;
         }
@@ -51,8 +50,7 @@ impl Transform {
         F1: FnOnce(&px::Engine) -> bool,
         F2: FnOnce(&px::Engine) -> bool,
     {
-        let (mouse_x, mouse_y) = game.get_mouse_location();
-        let mouse: Vf2d = (mouse_x as f32, mouse_y as f32).into();
+        let mouse: Vf2d = game.get_mouse_location().cast_f32();
 
         let mouse_before = self.screen_to_world(mouse.cast_i32());
 
@@ -71,9 +69,8 @@ impl Transform {
     }
 
     pub fn get_mouse_location(&self, game: &px::Engine) -> Vf2d {
-        let (mouse_x, mouse_y) = game.get_mouse_location();
-        let mouse: Vi2d = (mouse_x as i32, mouse_y as i32).into();
-        
+        let mouse = game.get_mouse_location().cast_i32();
+
         self.screen_to_world(mouse)
     }
 

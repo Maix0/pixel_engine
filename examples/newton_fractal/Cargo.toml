@@ -1,0 +1,19 @@
+[package]
+name = "newton_fractal"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bumpalo = { version = "3.11.1", features = ["collections"] }
+itertools = "0.10.5"
+nalgebra = "0.31.4"
+num = { version = "0.4.0", features = ["libm"] }
+pixel_engine = { version = "0.8.0", path = "../../pixel_engine" }
+pixel_engine_console = { version = "0.1.0", path = "../../extensions/pixel_engine_console", default-features = false, features = ["trace"] }
+rayon = "1.6.1"
+shlex = "1.1.0"
+
+[target.wasm32-unknown-unknown.dependencies]
+wasm-bindgen-rayon = "1.0.3"

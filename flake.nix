@@ -29,6 +29,12 @@
         };
         cargo-ws = cargo-workspace.defaultPackage.${system}; #.packages.${system}.default;
         cargo-sc = cargo-semver-checks.packages.${system}.default;
+        rust_dev = rust-bin.selectLatestNightlyWith (toolchain:
+          toolchain.default.override {
+            extensions = ["rust-src"];
+
+            targets = ["wasm32-unknown-unknown" "x86_64-unknown-linux-gnu"];
+          });
       in
         mkShell {
           nativeBuildInputs = [
@@ -37,14 +43,10 @@
           ];
           buildInputs = [
             # Rust
-            (rust-bin.stable.latest.default.override {
-              extensions = ["rust-src"];
-
-              targets = ["wasm32-unknown-unknown" "x86_64-unknown-linux-gnu" "aarch64-linux-android"];
-            })
             cmake
             fontconfig
             pkgconfig
+            rust_dev
             # Web
             trunk
             wasm-bindgen-cli
@@ -95,6 +97,7 @@
           GRADLE_OPTS = "-Dorg.gradle.project.android.aapt2FromMavenOverride=${androidComposition.androidsdk}/libexec/android-sdk/build-tools/30.0.3/aapt2";
           shellHook = ''
             export LD_LIBRARY_PATH=$LIB_PATH:$LD_LIBRARY_PATH
+            export RUST_STD="${rust_dev}/share/doc/rust/html/std/index.html"
           '';
 
           VULKAN_SDK = "${vulkan-validation-layers}/share/vulkan/explicit_layer.d";

@@ -53,17 +53,17 @@ pub(crate) struct LeveledMessage {
     pub message: String,
 }
 
-#[cfg(feature = "off")]
+#[cfg(all(feature = "off", not(feature = "info")))]
 const CONSOLE_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Off;
-#[cfg(all(feature = "error", not(feature = "off")))]
+#[cfg(all(feature = "error", not(feature = "info")))]
 const CONSOLE_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Error;
-#[cfg(all(feature = "warn", not(feature = "off")))]
+#[cfg(all(feature = "warn", not(feature = "info")))]
 const CONSOLE_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Warn;
-#[cfg(all(feature = "info", not(feature = "off")))]
+#[cfg(feature = "info")]
 const CONSOLE_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Info;
-#[cfg(all(feature = "debug", not(feature = "off")))]
+#[cfg(all(feature = "debug", not(feature = "info")))]
 const CONSOLE_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Debug;
-#[cfg(all(feature = "trace", not(feature = "off")))]
+#[cfg(all(feature = "trace", not(feature = "info")))]
 const CONSOLE_LOG_LEVEL: log::LevelFilter = log::LevelFilter::Trace;
 
 impl log::Log for ConsoleLogger {

@@ -12,6 +12,7 @@ members = [
   "examples/simple",
   "examples/world_transform",
   "examples/world_transform_examples",
+  "examples/newton_fractal/",
   #"examples/wave-function-collapse"    
 ]
 
@@ -19,7 +20,6 @@ members = [
 pixel_engine = { path = "./pixel_engine" }
 pixel_engine_draw = { path = "./pixel_engine_draw" }
 pixel_engine_backend = { path = "./pixel_engine_backend" }
-pixel_engine_console = { path = "./extensions/pixel_engine_console" }
 
 [profile.release]
 debug = true

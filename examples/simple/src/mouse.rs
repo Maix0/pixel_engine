@@ -9,8 +9,8 @@ use wasm_bindgen::prelude::*;
 use px::traits::*;
 async fn init() {
     let game = px::EngineWrapper::new("Mouse".to_owned(), (50, 50, 10)).await;
-    let mut clicks: HashSet<(u32, u32)> = HashSet::new();
-    let mut old_pos = (0, 0);
+    let mut clicks: HashSet<px::vector2::Vu2d> = HashSet::new();
+    let mut old_pos: px::vector2::Vu2d = (0, 0).into();
     game.run(move |game: &mut px::Engine| {
         if game.get_key(px::inputs::Keycodes::Escape).any() {
             return Ok(false);
@@ -19,9 +19,9 @@ async fn init() {
         game.draw_line((25, 0), (25, 49), px::Color::GREEN);
         game.draw_line((0, 25), (49, 25), px::Color::GREEN);
         let mouse_pos = game.get_mouse_location();
-        game.draw((mouse_pos.0 as i32, mouse_pos.1 as i32), [255, 0, 0].into());
+        game.draw(mouse_pos.cast_i32(), [255, 0, 0].into());
         if game.get_mouse_btn(px::inputs::MouseBtn::Left).any() {
-            if old_pos.0 != mouse_pos.0 || old_pos.1 != mouse_pos.1 {
+            if mouse_pos != old_pos {
                 if clicks.contains(&mouse_pos) {
                     clicks.remove(&mouse_pos);
                 } else {
@@ -30,8 +30,8 @@ async fn init() {
             }
             old_pos = mouse_pos;
         }
-        for (x, y) in &clicks {
-            game.draw((*x as i32, *y as i32), [0, 0, 255].into());
+        for pos in &clicks {
+            game.draw(pos.cast_i32(), [0, 0, 255].into());
         }
         Ok(true)
     });
