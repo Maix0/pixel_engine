@@ -66,6 +66,9 @@ enum Operator {
     Modulo = 13,
 
     Pow = 21,
+
+    UnaryMinus = 31,
+    UnaryPlus = 32,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -83,6 +86,8 @@ impl Operator {
             Self::Divide => "/",
             Self::Multiply => "*",
             Self::Modulo => "%",
+            Self::UnaryMinus => "-",
+            Self::UnaryPlus => "+",
         }
     }
 
@@ -161,7 +166,12 @@ fn implicit_multiple_pass<'input>(
         } else {
             let next = iter.next();
             if matches!(&next, Some(Ok(token_stream::Token::Ident(w))) if w.len() == 1)
-                || matches!(&next, Some(Ok(token_stream::Token::Literal(_))))
+                || matches!(
+                    &next,
+                    Some(Ok(
+                        token_stream::Token::Literal(_) | token_stream::Token::RightParenthesis
+                    ))
+                )
             {
                 if let Some(Ok(
                     token_stream::Token::LeftParenthesis | token_stream::Token::Ident(_),
@@ -175,24 +185,70 @@ fn implicit_multiple_pass<'input>(
     })
 }
 
+fn unary_pass<'input>(
+    mut iter: std::iter::Peekable<
+        impl Iterator<Item = Result<token_stream::Token<'input>, InvalidToken<'input>>> + 'input,
+    >,
+) -> impl Iterator<Item = Result<token_stream::Token<'input>, InvalidToken<'input>>> + 'input {
+    let next = iter.peek_mut().map(|next| match next {
+        Ok(token_stream::Token::Operator(op @ Operator::Minus)) => {
+            *op = Operator::UnaryMinus;
+        }
+        Ok(token_stream::Token::Operator(op @ Operator::Plus)) => {
+            *op = Operator::UnaryPlus;
+        }
+        _ => (),
+    });
+    std::iter::from_fn(move || {
+        let next = iter.next();
+        match next {
+            Some(Ok(
+                token_stream::Token::Operator(_)
+                | token_stream::Token::Comma
+                | token_stream::Token::Whitespace
+                | token_stream::Token::LeftParenthesis,
+            )) => match iter.peek_mut() {
+                Some(Ok(token_stream::Token::Operator(op @ Operator::Minus))) => {
+                    *op = Operator::UnaryMinus
+                }
+                Some(Ok(token_stream::Token::Operator(op @ Operator::Plus))) => {
+                    *op = Operator::UnaryPlus
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+        next
+    })
+}
+
 pub use token_stream::InvalidToken;
 
 impl<'arena> Expr<'arena> {
     pub fn parse<'input>(
+        arena: &'arena bumpalo::Bump,
         input: &'input str,
         reserved_words: &[&str],
-    ) -> Result<Expr<'arena>, token_stream::InvalidToken<'input>> {
+    ) -> Result<&'arena mut Expr<'arena>, token_stream::InvalidToken<'input>> {
         let iter = token_stream::parse_tokens(input, reserved_words);
         let iter = function_pass(iter.peekable());
         let iter = implicit_multiple_pass(iter.peekable());
+        let iter = unary_pass(iter.peekable());
 
+        todo!()
+    }
+
+    fn shunting_yard<'input>(
+        arena: &'arena bumpalo::Bump,
+        iter: impl Iterator<Item = Result<token_stream::Token<'input>, InvalidToken<'input>>>,
+    ) -> Result<&'arena mut Expr<'arena>, token_stream::InvalidToken<'input>> {
         todo!()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::token_stream::Token::*;
+    use super::token_stream::{token_stream_to_string, Token::*};
     use super::*;
 
     #[test]
@@ -222,43 +278,33 @@ mod tests {
 
     #[test]
     fn implicit_multiple() {
-        let input = "a(1) + 1(1) + 1a + aa";
+        let input = "a(1) + 1(1) + 1a + aa + (1)(1)";
         let stream = token_stream::parse_tokens(input, token_stream::RESTRICTED_WORD);
         let first_pass = implicit_multiple_pass(stream.peekable());
 
-        let res: Result<Vec<_>, _> = first_pass.collect();
-
+        let iter = first_pass
+            .flat_map(|token| [Ok(Whitespace), token].into_iter())
+            .skip(1);
+        let res = token_stream_to_string(iter);
         assert!(res.is_ok());
 
         assert_eq!(
             res.unwrap(),
-            vec![
-                Ident("a"),
-                Operator(super::Operator::Multiply),
-                LeftParenthesis,
-                Literal(1.0),
-                RightParenthesis,
-                //
-                Operator(super::Operator::Plus),
-                //
-                Literal(1.0),
-                Operator(super::Operator::Multiply),
-                LeftParenthesis,
-                Literal(1.0),
-                RightParenthesis,
-                //
-                Operator(super::Operator::Plus),
-                //
-                Literal(1.0),
-                Operator(super::Operator::Multiply),
-                Ident("a"),
-                //
-                Operator(super::Operator::Plus),
-                //
-                Ident("a"),
-                Operator(super::Operator::Multiply),
-                Ident("a")
-            ]
+            "a * ( 1 ) + 1 * ( 1 ) + 1 * a + a * a + ( 1 ) * ( 1 )"
         );
+    }
+
+    #[test]
+    fn unary() {
+        let input = "-(-1) + -(+a)";
+
+        let stream = token_stream::parse_tokens(input, token_stream::RESTRICTED_WORD);
+        let iter = stream
+            .flat_map(|token| [Ok(Whitespace), token].into_iter())
+            .skip(1);
+        let res = token_stream_to_string(iter);
+        assert!(res.is_ok());
+
+        assert_eq!(res.unwrap(), "- ( - 1 ) + - ( + a )");
     }
 }

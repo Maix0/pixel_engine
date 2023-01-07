@@ -31,7 +31,7 @@ pub enum Token<'input> {
     Comma = Token::COMMA,
 }
 
-enum IterEither<L, R> {
+pub enum IterEither<L, R> {
     Left(L),
     Right(R),
 }
@@ -83,9 +83,7 @@ impl<'input> Token<'input> {
                 reserved_words
                     .iter()
                     .find_map(|&word| input.ends_with(word).then_some((input, word)))
-                    .map(|(input, word)| {
-                        input.split_at(input.bytes().len() - word.bytes().len())
-                    })
+                    .map(|(input, word)| input.split_at(input.bytes().len() - word.bytes().len()))
                     .map(|(idents, word)| {
                         idents
                             .split("")
@@ -102,12 +100,14 @@ impl<'input> Token<'input> {
             ));
         }
 
-        Err(InvalidToken(input))
+        Err(InvalidToken { span: Some(input) })
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct InvalidToken<'input>(&'input str);
+pub struct InvalidToken<'input> {
+    span: Option<&'input str>,
+}
 
 impl<'input> std::fmt::Display for InvalidToken<'input> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -196,6 +196,38 @@ fn swap<I: Iterator, E>(r: Result<I, E>) -> impl Iterator<Item = Result<I::Item,
         Ok(i) => SwapResult::Ok(i.map(Ok)),
         Err(e) => SwapResult::Err(core::iter::once(Err(e))),
     }
+}
+
+pub fn token_stream_to_string<'input>(
+    iter: impl Iterator<Item = Result<Token<'input>, InvalidToken<'input>>> + 'input,
+) -> Result<String, InvalidToken<'input>> {
+    fn iter_to_str<'input>(
+        iter: impl Iterator<Item = Result<Token<'input>, InvalidToken<'input>>> + 'input,
+    ) -> impl Iterator<Item = Result<std::borrow::Cow<'input, str>, InvalidToken<'input>>> + 'input
+    {
+        use std::borrow::Cow;
+        iter.map(|token| {
+            token.map(|t| {
+                match t {
+                    Token::Ident(a) => Cow::Borrowed(a),
+                    Token::Comma => Cow::Borrowed(","),
+                    Token::LeftParenthesis => Cow::Borrowed("("),
+                    Token::RightParenthesis => Cow::Borrowed(")"),
+                    Token::Literal(v) => Cow::Owned(v.to_string()),
+                    Token::Operator(o) => Cow::Borrowed(o.as_str()),
+                    Token::Whitespace => Cow::Borrowed(" "),
+                }
+                .into()
+            })
+        })
+    }
+
+    let mut out = String::new();
+    for s in iter_to_str(iter) {
+        let s = s?;
+        out.push_str(&s);
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
