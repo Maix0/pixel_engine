@@ -48,13 +48,13 @@ impl<T, L: Iterator<Item = T>, R: Iterator<Item = T>> Iterator for IterEither<L,
 }
 
 impl<'input> Token<'input> {
-    const WHITESPACE: u8 = 0;
-    const LITERAL: u8 = 1;
-    const IDENT: u8 = 2;
-    const OPERATOR: u8 = 3;
-    const LEFT_PARENS: u8 = 4;
-    const RIGHT_PARENS: u8 = 5;
-    const COMMA: u8 = 6;
+    pub const WHITESPACE: u8 = 0;
+    pub const LITERAL: u8 = 1;
+    pub const IDENT: u8 = 2;
+    pub const OPERATOR: u8 = 3;
+    pub const LEFT_PARENS: u8 = 4;
+    pub const RIGHT_PARENS: u8 = 5;
+    pub const COMMA: u8 = 6;
 
     fn from_str(
         input: &'input str,
@@ -104,9 +104,9 @@ impl<'input> Token<'input> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InvalidToken<'input> {
-    span: Option<&'input str>,
+    pub span: Option<&'input str>,
 }
 
 impl<'input> std::fmt::Display for InvalidToken<'input> {
@@ -125,10 +125,9 @@ pub fn parse_tokens<'input, 'words: 'input, 'words_slice: 'words>(
     let mut stop = false;
     std::iter::from_fn(move || {
         let Some((mut index, mut chr)) = chars_index.next() else {
-
             if !stop {
                 stop = true;
-                return Some(swap(Token::from_str(&input[cur_chr..], reserved_words)));
+                return Some(Token::from_str(&input[cur_chr..], reserved_words));
             } else {
                 return None;
             }
@@ -146,13 +145,22 @@ pub fn parse_tokens<'input, 'words: 'input, 'words_slice: 'words>(
         token_type = get_chr_token_type(chr);
         let s = &input[cur_chr..index];
         cur_chr = index;
-        Some(swap(Token::from_str(s, reserved_words)))
+        Some(Token::from_str(s, reserved_words))
     })
-    .flatten()
-    .filter(|w| {
-        w.as_ref()
-            .map(|t| std::mem::discriminant(t) != std::mem::discriminant(&Token::Whitespace))
-            .unwrap_or(false)
+    .flat_map(swap)
+    .filter_map(|t| match t {
+        Ok(Token::Whitespace) => None,
+        Ok(Token::Ident(" ")) => None,
+        Ok(Token::Ident("(")) => Some(Ok(Token::LeftParenthesis)),
+        Ok(Token::Ident(")")) => Some(Ok(Token::RightParenthesis)),
+        Ok(Token::Ident("+")) => Some(Ok(Token::Operator(super::Operator::Plus))),
+        Ok(Token::Ident("-")) => Some(Ok(Token::Operator(super::Operator::Minus))),
+        Ok(Token::Ident("*")) => Some(Ok(Token::Operator(super::Operator::Multiply))),
+        Ok(Token::Ident("/")) => Some(Ok(Token::Operator(super::Operator::Divide))),
+        Ok(Token::Ident("%")) => Some(Ok(Token::Operator(super::Operator::Modulo))),
+        Ok(Token::Ident("^")) => Some(Ok(Token::Operator(super::Operator::Pow))),
+        Ok(Token::Ident(",")) => Some(Ok(Token::Comma)),
+        t => Some(t),
     })
 }
 
@@ -169,6 +177,7 @@ fn get_chr_token_type(chr: char) -> u8 {
     }
 }
 
+#[allow(clippy::type_complexity)]
 enum SwapResult<I, E>
 where
     I: Iterator,
@@ -207,17 +216,14 @@ pub fn token_stream_to_string<'input>(
     {
         use std::borrow::Cow;
         iter.map(|token| {
-            token.map(|t| {
-                match t {
-                    Token::Ident(a) => Cow::Borrowed(a),
-                    Token::Comma => Cow::Borrowed(","),
-                    Token::LeftParenthesis => Cow::Borrowed("("),
-                    Token::RightParenthesis => Cow::Borrowed(")"),
-                    Token::Literal(v) => Cow::Owned(v.to_string()),
-                    Token::Operator(o) => Cow::Borrowed(o.as_str()),
-                    Token::Whitespace => Cow::Borrowed(" "),
-                }
-                .into()
+            token.map(|t| match t {
+                Token::Ident(a) => Cow::Borrowed(a),
+                Token::Comma => Cow::Borrowed(","),
+                Token::LeftParenthesis => Cow::Borrowed("("),
+                Token::RightParenthesis => Cow::Borrowed(")"),
+                Token::Literal(v) => Cow::Owned(v.to_string()),
+                Token::Operator(o) => Cow::Borrowed(o.as_str()),
+                Token::Whitespace => Cow::Borrowed(" "),
             })
         })
     }

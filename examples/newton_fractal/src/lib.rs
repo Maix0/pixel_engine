@@ -24,12 +24,12 @@ impl px::Game for Game {
         if engine.get_key(px::inputs::Keycodes::Space).pressed {
             engine.open_console(px::inputs::Keycodes::Escape, false);
         }
-        Ok(!(engine.get_key(px::inputs::Keycodes::Escape).pressed && !engine.is_console_opened()))
+        Ok(!engine.get_key(px::inputs::Keycodes::Escape).pressed || engine.is_console_opened())
     }
 }
 
 impl pxc::ConsoleGame for Game {
-    fn receive_console_input(&mut self, engine: &mut px::Engine, mut input: String) {
+    fn receive_console_input(&mut self, _engine: &mut px::Engine, mut input: String) {
         input.make_ascii_lowercase();
         let commands = shlex::split(&input).unwrap_or_default();
 
